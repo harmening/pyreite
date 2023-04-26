@@ -49,7 +49,6 @@ class OpenMEEGHead(object):
         self._gain = None
         self._C = None
         self._V = None
-        self._V_dip = None
         self._condition_nb = None
         self.omega = omega
 
@@ -68,39 +67,47 @@ class OpenMEEGHead(object):
     @property
     def A(self):
         """Compute/return the attribute system matrix A"""
-        if not self._A:
-            self._A = om.HeadMat(self.geom, self.GAUSS_ORDER)
+        if not isinstance(self._A, np.ndarray):
+            A = om.HeadMat(self.geom, self.GAUSS_ORDER)
+            self._A = self.asnp(om.Matrix(A))
             #self._condition_nb = self.condition_nb
         return self._A
     @property
     def Ainv(self):
         """Compute/return the attribute system matrix A inverse"""
-        if not self._Ainv:
-            # deepcopy
-            fn_A = os.path.join(tempfile.mkdtemp(), 'A_'+str(random()))
-            self.A.save(fn_A)
-            self._Ainv = self._A
-            self._Ainv.invert()
-            self._A = om.SymMatrix(fn_A)
-            os.remove(fn_A)
+        if not isinstance(self._Ainv, np.ndarray):
+            print("Warning: inverting A explicitly...")
+            self._Ainv = np.linalg.pinv(self.A)
         return self._Ainv
     @property
     def eitsm(self):
         """Compute/return the attribute righthandside for EIT"""
-        if not self._eitsm:
-            self._eitsm = om.EITSourceMat(self.geom, self.sens, self.GAUSS_ORDER)
+        if not isinstance(self._eitsm, np.ndarray):
+            eitsm = om.EITSourceMat(self.geom, self.sens, self.GAUSS_ORDER)
+            self._eitsm = self.asnp(eitsm)
         return self._eitsm
     @property
     def h2em(self):
         """Compute/return the mapping from outer boundary to electrodes"""
-        if not self._h2em:
-            self._h2em = om.Head2EEGMat(self.geom, self.sens)
+        if not isinstance(self._h2em, np.ndarray):
+            h2em = om.Head2EEGMat(self.geom, self.sens)
+            self._h2em = self.asnp(h2em)
         return self._h2em
     @property
     def gain(self):
         """Compute/return the EIT gain/leadfield matrix"""
-        if not self._gain:
-            self._gain = om.GainEEG(self.Ainv, self.eitsm, self.h2em)
+        if not isinstance(self._gain, np.ndarray):
+            #self._gain = om.GainEEG(om.Matrix(np.fortranarray(self.Ainv)),
+            #                        om.Matrix(np.fortranarray(self.eitsm)),
+            #                        om.Matrix(np.fortranarray(self.h2em)))
+            if isinstance(self._Ainv, np.ndarray):
+                # use precomputed Ainv
+                L = self.h2em.dot(np.dot(self.Ainv, self.eitsm))
+            else:
+                # faster
+                C = np.linalg.solve(self.A, self.eitsm)
+                L = np.dot(self.h2em, C)
+            self._gain = L
         return self._gain
     @property
     def n_electrodes(self):
@@ -109,12 +116,12 @@ class OpenMEEGHead(object):
     @property
     def C(self):
         if not isinstance(self._C, np.ndarray):
-            self._V, self._C = self._EIT_data(self.asnp(self.gain), self.sens)
+            self._V, self._C = self._EIT_data(self.gain, self.sens)
         return self._C
     @property
     def V(self):
         if not isinstance(self._V, np.ndarray):
-            self._V, self._C = self._EIT_data(self.asnp(self.gain), self.sens)
+            self._V, self._C = self._EIT_data(self.gain, self.sens)
         return self._V
 
     def _EIT_data(self, G_eit, sens, freqs=[0], Iamp=[1], freq=0, ref='CAR',
@@ -182,7 +189,7 @@ class OpenMEEGHead(object):
     @property
     def condition_nb(self):
         if not self._condition_nb:
-            self._condition_nb = np.linalg.cond(om2np(self.A))
+            self._condition_nb = np.linalg.cond(self.A)
             print('Condition number of system matrix: %f' % self._condition_nb)
         return self._condition_nb
 

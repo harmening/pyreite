@@ -25,7 +25,7 @@ $ docker build -t pyreite .
 ```
 or pull from [docker hub](https://hub.docker.com/r/harmening/pyreite)
 ```bash
-$ docker pull harmening/pyreite
+$ docker pull harmening/pyreite:v0.2
 ```
 <br>
 
