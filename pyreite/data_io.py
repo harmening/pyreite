@@ -1,7 +1,18 @@
 #!/usr/bin/env python
 import os
 import numpy as np
+import h5py, scipy.io as sio
 
+
+def load_elecs_dips_txt(fn):
+    # Load electrodes or dipoles from file
+    try:
+        with open(fn, 'r') as f:
+    	    dips = [[float(i) for i in line.split()] for line in f.readlines()]
+    except:
+        with open(fn, 'r') as f:
+    	    dips = [[float(i) for i in line.split(',')] for line in f.readlines()]
+    return dips
 
 
 def write_cond_file(cond, filename):
@@ -16,7 +27,8 @@ def write_cond_file(cond, filename):
 
 def write_geom_file(geom_out2inside, filename):
     path = os.path.split(filename)[0]
-    outstr = '# Domain Description 1.0\n\nInterfaces %d Mesh\n\n' % len(geom_out2inside)
+    outstr = '# Domain Description 1.0\n\nInterfaces %d Mesh\n\n' % \
+             len(geom_out2inside)
     for tissue in geom_out2inside.keys():
         outstr += '%s.tri\n' % tissue
     outstr += '\nDomains %d\n\n' % (len(geom_out2inside)+1)
@@ -45,82 +57,58 @@ def write_dip_file(dipole_positions, filename):
     with open(filename, 'w') as f:
         if len(dipole_positions[0]) == 3:
             for dip in dipole_positions:
-                f.write("%f\t%f\t%f\t%f\t%f\t%f\n" % (dip[0], dip[1], dip[2], 1, 0, 0))
-                f.write("%f\t%f\t%f\t%f\t%f\t%f\n" % (dip[0], dip[1], dip[2], 0, 1, 0))
-                f.write("%f\t%f\t%f\t%f\t%f\t%f\n" % (dip[0], dip[1], dip[2], 0, 0, 1))
+                f.write("%f\t%f\t%f\t%f\t%f\t%f\n" % (dip[0], dip[1], dip[2], \
+                                                      1, 0, 0))
+                f.write("%f\t%f\t%f\t%f\t%f\t%f\n" % (dip[0], dip[1], dip[2], \
+                                                      0, 1, 0))
+                f.write("%f\t%f\t%f\t%f\t%f\t%f\n" % (dip[0], dip[1], dip[2], \
+                                                      0, 0, 1))
         elif len(dipole_positions[0]) == 6:
             for dip in dipole_positions:
-                f.write("%f\t%f\t%f\t%f\t%f\t%f\n" % (dip[0], dip[1], dip[2], dip[3], dip[4], dip[5]))
+                f.write("%f\t%f\t%f\t%f\t%f\t%f\n" % (dip[0], dip[1], dip[2], \
+                                                      dip[3], dip[4], dip[5]))
         else:
             raise NotImplementedError
     return
 
 
-def load_tri(filename='tmp.tri', normals=False):
-    with open(filename, 'r') as f:
-        g = open('./tmp_mne.tri', 'w')
-        num = -1
-        for ii, line in enumerate(f.readlines()):
-            if ii == 0:
-                g.write(line[1:])
-                num = int(line[2:])
-            elif ii == num+1:
-                g.write(' '+line.split()[-1]+'\n')
-            else:
-                g.write(line)
-        g.close()
-        bnd = mne_read_tri('./tmp_mne.tri', normals=normals)
-        os.remove('./tmp_mne.tri')
-        pos, tri = bnd
-        tri += 1
-    return (pos, tri)
-
-
-def mne_read_tri(fname_in, swap=False, print_warnings=False, normals=False):
-    """ Read triangle definitions from an ascii file. 
+def load_tri(filename, print_warnings=False):
+    """ Loads mesh from tri-file
     Parameters
     ----------
-    fname_in : str
+    filename: str
         Path to surface ASCII file (ending with '.tri').
-    swap : bool
-        Assume the ASCII file vertex ordering is clockwise instead of
-        counterclockwise.
     Returns
     -------
-    rr : array, shape=(n_vertices, 3)
+    pos : array, shape=(n_vertices, 3)
         Coordinate points.
-    tris : int array, shape=(n_faces, 3)
+    tri : int array, shape=(n_faces, 3)
         Triangulation (each line contains indices for three points which
         together form a face).
     """
-    with open(fname_in, "r") as fid:
+    with open(filename, "r") as fid:
         lines = fid.readlines()
-    n_nodes = int(lines[0])
-    n_tris = int(lines[n_nodes + 1])
-    # manual correction (if first faces, than pos)
-    if n_nodes > n_tris:
-        lines = lines[n_nodes+1:] + lines[:n_nodes+1]
-        n_nodes = int(lines[0])
-        n_tris = int(lines[n_nodes + 1])
+    n_nodes = int(lines[0].split()[-1])
+    n_tris = int(lines[n_nodes + 1].split()[-1])
     n_items = len(lines[1].split())
-    if n_items in [3, 6]:
-        inds = range(6) if normals else range(3)
+    if n_items in [3, 6, 14, 17]:
+        inds = range(3)
     elif n_items in [4, 7]:
         inds = range(1, 4)
     else:
         raise IOError('Unrecognized format of data.')
-    rr = np.array([np.array([float(v) for v in l.split()])[inds]
+    pos = np.array([np.array([float(v) for v in l.split()])[inds]
                    for l in lines[1:n_nodes + 1]])
-    # also corrected:
-    inds = range(3)
     tris = np.array([[int(l.split()[ind]) for ind in inds]
                      for l in lines[n_nodes + 2:n_nodes + 2 + n_tris]])
-    if swap:
-        tris[:, [2, 1]] = tris[:, [1, 2]]
     tris -= 1
     if not n_items in [3, 4] and print_warnings:
         print('Node normals were not read.')
-    return (rr, tris)
+    # ensure that tris start at zero
+    if np.min(tris) != 0:
+        tris -= np.min(tris)
+    return pos, tris
+
 
 
 
@@ -159,7 +147,8 @@ def get_normals(vertices, faces):
     ### NEW: CHECK FOR NANS (+ dirty fix)
     nan_idx = set(np.argwhere(np.isnan(normals_v))[:,0])
     for idx in nan_idx:
-        neighbors = set([faces[t][i] for t in np.argwhere(faces==idx)[:,0] for i in range(3)])  - {idx}
+        neighbors = set([faces[t][i] for t in np.argwhere(faces==idx)[:,0] \
+                         for i in range(3)])  - {idx}
         nrm = np.array([0.0, 0.0, 0.0])
         for n in neighbors:
             if (not np.isnan(normals_v[n]).any()):

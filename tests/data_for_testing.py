@@ -4,27 +4,51 @@ import numpy as np
 import os
 BASEDIR = os.path.dirname(os.path.realpath(__file__))
 
-#Settings
-SCALE = 1.3
 
-def simple_test_shapes(num_nested_meshes):
+def fast_simple_test_shapes(num_nested_meshes):
     bnds = []
-    verts, faces = form_base_icosahedron()
-    middle_point_cache = {}
+    scale = 1.1
+    verts, faces = form_base_icosahedron(scale)
+    verts, faces, middle_point_cache = subdivision(verts, faces, {}, scale)
     for i in range(num_nested_meshes):
-        verts, faces, middle_point_cache = subdivision(verts, faces, middle_point_cache)
+        scale *= 1.1
+        verts, faces = form_base_icosahedron(scale)
+        verts, faces, middle_point_cache = subdivision(verts, faces, {}, scale)
+        verts, faces, middle_point_cache = subdivision(verts, faces, \
+                                                       middle_point_cache, \
+                                                       scale)
+        verts, faces, middle_point_cache = subdivision(verts, faces, \
+                                                       middle_point_cache, \
+                                                       scale)
         pos, tri = np.array(verts), np.array(faces)
         pos = (pos/100) * (i+1)
         bnds.append((pos, tri))
+    return bnds 
+
+def simple_test_shapes(num_nested_meshes):
+    bnds = []
+    scale = 1.3
+    verts, faces = form_base_icosahedron(scale)
+    middle_point_cache = {}
+    for i in range(num_nested_meshes):
+        pos, tri = np.array(verts), np.array(faces)
+        pos = (pos/100) * (i+1)
+        bnds.append((pos, tri))
+        verts, faces, middle_point_cache = subdivision(verts, faces, \
+                                                       middle_point_cache, \
+                                                       scale)
         #write_tri(pos, tri, './icosphere'+str(i)+'.tri')
     return bnds 
 
-def subdivision(verts, faces, middle_point_cache):
+def subdivision(verts, faces, middle_point_cache, scale):
     faces_subdiv = []
     for tri in faces:
-        v1, verts, middle_point_cache = middle_point(tri[0], tri[1], verts, middle_point_cache)
-        v2, verts, middle_point_cache = middle_point(tri[1], tri[2], verts, middle_point_cache)
-        v3, verts, middle_point_cache = middle_point(tri[2], tri[0], verts, middle_point_cache)
+        v1, verts, middle_point_cache = middle_point(tri[0], tri[1], verts, \
+                                                     middle_point_cache, scale)
+        v2, verts, middle_point_cache = middle_point(tri[1], tri[2], verts, \
+                                                     middle_point_cache, scale)
+        v3, verts, middle_point_cache = middle_point(tri[2], tri[0], verts, \
+                                                     middle_point_cache, scale)
         faces_subdiv.append([tri[0], v1, v3])
         faces_subdiv.append([tri[1], v2, v1])
         faces_subdiv.append([tri[2], v3, v2])
@@ -32,9 +56,9 @@ def subdivision(verts, faces, middle_point_cache):
     faces = faces_subdiv
     return verts, faces, middle_point_cache
 
-def middle_point(point_1, point_2, verts, middle_point_cache):
+def middle_point(point_1, point_2, verts, middle_point_cache, scale):
     """ Find a middle point and project to the unit sphere """
-    # We check if we have already cut this edge first # to avoid duplicated verts
+    # Check if we have already cut this edge first # to avoid duplicated verts
     smaller_index = min(point_1, point_2)
     greater_index = max(point_1, point_2)
     key = '{0}-{1}'.format(smaller_index, greater_index)
@@ -44,46 +68,33 @@ def middle_point(point_1, point_2, verts, middle_point_cache):
     vert_1 = verts[point_1]
     vert_2 = verts[point_2]
     middle = [sum(i)/2 for i in zip(vert_1, vert_2)]
-    verts.append(vertex(*middle))
+    verts.append(vertex(*middle, scale))
     index = len(verts) - 1
     middle_point_cache[key] = index
     return index, verts, middle_point_cache
 
-def vertex(x, y, z):
+def vertex(x, y, z, scale):
     """ Return vertex
     coordinates fixed to the unit sphere """
     length = sqrt(x**2 + y**2 + z**2)
-    return [(i * SCALE) / length for i in (x,y,z)]
+    return [(i * scale) / length for i in (x,y,z)]
 
-def form_base_icosahedron():
+def form_base_icosahedron(scale):
     # Golden ratio
     PHI = (1 + sqrt(5)) / 2
     verts = [
-            vertex(-1, PHI, 0),
-            vertex( 1, PHI, 0),
-            vertex(-1, -PHI, 0),
-            vertex( 1, -PHI, 0),
-            vertex(0, -1, PHI),
-            vertex(0, 1, PHI),
-            vertex(0, -1, -PHI),
-            vertex(0, 1, -PHI),
-            vertex( PHI, 0, -1),
-            vertex( PHI, 0, 1),
-            vertex(-PHI, 0, -1),
-            vertex(-PHI, 0, 1),]
-    verts = [
-            vertex(-1, PHI, 0),
-            vertex( 1, PHI, 0),
-            vertex(-1, -PHI, 0),
-            vertex( 1, -PHI, 0),
-            vertex(0, -1, PHI),
-            vertex(0, 1, PHI),
-            vertex(0, -1, -PHI),
-            vertex(0, 1, -PHI),
-            vertex( PHI, 0, -1),
-            vertex( PHI, 0, 1),
-            vertex(-PHI, 0, -1),
-            vertex(-PHI, 0, 1),]
+            vertex(-1, PHI, 0, scale),
+            vertex( 1, PHI, 0, scale),
+            vertex(-1, -PHI, 0, scale),
+            vertex( 1, -PHI, 0, scale),
+            vertex(0, -1, PHI, scale),
+            vertex(0, 1, PHI, scale),
+            vertex(0, -1, -PHI, scale),
+            vertex(0, 1, -PHI, scale),
+            vertex( PHI, 0, -1, scale),
+            vertex( PHI, 0, 1, scale),
+            vertex(-PHI, 0, -1, scale),
+            vertex(-PHI, 0, 1, scale),]
              
     faces = [
              # 5 faces around point 0

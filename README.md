@@ -1,13 +1,17 @@
 # :skull_and_crossbones: pyreite
 # Pythonic, Yet Rudimental, Electrical Impedance Tomography Expert
 **Code snippets for pythonic head modeling with Electrical Impedance Tomography (EIT).**<br>
+<br>
+[![build](https://github.com/harmening/pyreite/actions/workflows/action.yml/badge.svg)](https://github.com/harmening/pyreite/actions)
+[![coverage](https://codecov.io/gh/harmening/pyreite/branch/main/graph/badge.svg?token=LHJ5W57UE8)](https://codecov.io/gh/harmening/pyreite)
+[![python](https://img.shields.io/badge/python-3.6-blue.svg)](https://www.python.org/downloads/release/python-360/)
 
 
 
 ## Get up and running
 ### Prerequisites
-- [Python3.6](https://www.python.org/downloads/) or newer
-- [OpenMEEG](https://github.com/openmeeg/openmeeg/blob/master/README.rst#build-openmeeg-from-source) with python wrapping: compile with `"-DENABLE_PYTHON=ON"`
+- [Python3.6](https://www.python.org/downloads/)
+- [OpenMEEG](https://github.com/openmeeg/openmeeg/blob/master/README.rst#build-openmeeg-from-source) 2.4 with python wrapping: compile with `"-DENABLE_PYTHON=ON"`
 
 ### Install pyreite
 ```bash

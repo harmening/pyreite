@@ -20,20 +20,23 @@ def test_OpenMEEGHead():
         geom[tmp % (i+1)] = bnd
         cond[tmp % (i+1)] = np.random.rand()
     electrodes = find_center_of_triangle(bnds[-1][0], bnds[-1][1])
+    with pytest.raises(ValueError):
+        head = OpenMEEGHead(cond, "examle.tri", electrodes)
+    with pytest.raises(ValueError):
+        head = OpenMEEGHead(cond, geom, {'1': [1, 2, 3]})
     head = OpenMEEGHead(cond, geom, electrodes)
     nb_entries, nb_elements = 0, 0
     for i, bnd in enumerate(bnds):
         pos, tri = bnd
         nb_elements += pos.shape[0] + tri.shape[0] 
         nb_entries += len(head.ind['V'][i]) + len(head.ind['p'][i])
-        #if i != len(bnds)-1:
-        #    nb_entries += len(head.ind['p'][i])
         if i == len(bnds)-1:
             nb_elements -= tri.shape[0]
-    #assert nb_elements == nb_entries == head.A.nlin()
+    assert nb_elements == nb_entries == head.A.shape[0]
     assert nb_entries == head.A.shape[0]
-    #assert head.ind['p'][0][-1]+1 == head.A.nlin() # if inside out and openmeeg works outside in
-    assert head.mesh_names[0] == list(geom.keys())[0] # right order
+    # if inside out and openmeeg works outside in
+    assert head.ind['p'][0][-1]+1 == head.A.shape[0] 
+    assert head.mesh_names[0] == list(geom.keys())[-1] # right order (reversed)
     assert (head.Ainv != head.A).all()  # the order is important here!
     assert np.sum(head.eitsm) != 0
     assert head.eitsm.shape[0] == head.A.shape[0] 
@@ -44,11 +47,3 @@ def test_OpenMEEGHead():
     head.set_cond(cond)
     assert head._A == None
     assert head._Ainv == None
-
-    new_head = OpenMEEGHead(cond, geom, electrodes)
-    gain = new_head.gain
-    Ainv = new_head.Ainv
-    assert_array_almost_equal(new_head.gain, gain)
-
-if __name__ == '__main__':
-    test_OpenMEEGHead()

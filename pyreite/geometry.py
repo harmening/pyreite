@@ -23,28 +23,6 @@ def mesh2bnd(mesh):
     return np.array(verts), np.array(tris)
 
 
-def getVolumeIndices(head):
-    geom = head.geom
-    #idx = [i for i in range(geom.nb_meshes())]
-    ind = {tissue: i for i, tissue in enumerate(head.mesh_names)}
-    # From outside to inside
-    ind['V'] = np.zeros((geom.nb_meshes(), 2), dtype=np.int)
-    ind['p'] = np.zeros((geom.nb_meshes(), 2), dtype=np.int)
-    for tissue, mesh in zip(head.mesh_names, head.geom.meshes()):
-        i = ind[tissue]
-        V_num = mesh.nb_vertices()
-        p_num = mesh.nb_triangles()
-        #if i == 0:
-        #    ind['p'][i,:] = [np.nan, np.nan]
-        if i != 0:
-            ind['p'][i][0] = ind['V'][i-1][1]
-            ind['p'][i][1] = ind['p'][i][0] + p_num
-        ind['V'][i][0] = 0 if i == 0 else ind['p'][i][1]
-        ind['V'][i][1] = ind['V'][i][0] + V_num
-    return ind
-
-
-
 # The following code is adapted from fieldtrip:
 # https://github.com/fieldtrip/fieldtrip/blob/master/private/project_elec.m
 def align_electrodes(elc, scalp):
@@ -53,16 +31,21 @@ def align_electrodes(elc, scalp):
     Nelc = len(elc)
     el   = np.zeros((Nelc, 4))
     for i in range(Nelc):
-        proj, dist = ptriprojn(pnt[tri[:,0],:], pnt[tri[:,1],:], pnt[tri[:,2],:], np.array([elc[i,:]]), 1)
+        proj, dist = ptriprojn(pnt[tri[:,0],:], pnt[tri[:,1],:], \
+                               pnt[tri[:,2],:], np.array([elc[i,:]]), 1)
         minindx = np.argmin(abs(dist))
         mindist = np.min(abs(dist))
-        la, mu, _, _ = lmoutrn(pnt[np.newaxis, tri[minindx,0],:], pnt[np.newaxis, tri[minindx,1],:], pnt[np.newaxis, tri[minindx,2],:], proj[np.newaxis, minindx,:])
+        la, mu, _, _ = lmoutrn(pnt[np.newaxis, tri[minindx,0],:], \
+                               pnt[np.newaxis, tri[minindx,1],:], \
+                               pnt[np.newaxis, tri[minindx,2],:], \
+                               proj[np.newaxis, minindx,:])
         smallest_dist = dist[minindx]
         smallest_tri  = minindx
         smallest_la   = la[0]
         smallest_mu   = mu[0]
         # store the projection for this electrode
-        el[i,:] = np.array([smallest_tri, smallest_la, smallest_mu, smallest_dist])
+        el_i = [smallest_tri, smallest_la, smallest_mu, smallest_dist]
+        el[i,:] = np.array(el_i)
 
     prj = np.zeros((elc.shape))
     for i in range(Nelc):
@@ -105,7 +88,8 @@ def lmoutrn(v1, v2, v3, r):
     vec1 = v2 - v1
     #vec2 = v3 - v2
     vec3 = v3 - v1
-    origin = np.repeat(np.mean(np.vstack((v1, v2, v3)), axis=0), len(v1)).T.reshape(v1.T.shape).T     
+    origin = np.repeat(np.mean(np.vstack((v1, v2, v3)), axis=0), \
+                       len(v1)).T.reshape(v1.T.shape).T     
     tmp = np.empty((3, 2, len(v1)))
     tmp[:,0,:] = vec1.T
     tmp[:,1,:] = vec3.T
@@ -117,22 +101,24 @@ def lmoutrn(v1, v2, v3, r):
 
             
     # determine the projection onto the plane of the triangle
-    proj  = v1 + np.multiply(np.vstack((la, la, la)).T, vec1) + np.multiply(np.vstack((mu, mu, mu)).T, vec3)
+    proj  = v1 + np.multiply(np.vstack((la, la, la)).T, vec1) + \
+            np.multiply(np.vstack((mu, mu, mu)).T, vec3)
 
     # determine the signed distance from the original point to its projection
     # where the sign is negative if the original point is closer to the origin 
     origin_r    = np.sum(pow((r    - origin), 2), axis=1)
     origin_proj = np.sum(pow((proj - origin), 2), axis=1)
 
-    dist = np.sqrt(np.sum(pow((r - proj), 2), axis=1)) * np.sign(origin_r-origin_proj)
+    dist = np.sqrt(np.sum(pow((r - proj), 2), axis=1)) * \
+           np.sign(origin_r-origin_proj)
 
     return la, mu, dist, proj
 
 
 def plinprojn(l1, l2, r, flag=False):
     # PLINPROJN projects a point onto a line or linepiece
-    # where l1 and l2 are Nx3 matrices with the begin and endpoints of the linepieces, 
-    # and r is the point that is projected onto the lines
+    # where l1 and l2 are Nx3 matrices with the begin and endpoints of the 
+    # linepieces, and r is the point that is projected onto the lines
     # This is a vectorized version of Robert's ptriproj function and is
     # generally faster than a for-loop around the mex-file.
     #
@@ -151,8 +137,10 @@ def plinprojn(l1, l2, r, flag=False):
             if t[i] > 1:
                 t[i] = 1
 
-    proj = l1 + np.vstack((np.multiply(t, v[:,0]), np.multiply(t, v[:,1]), np.multiply(t, v[:,2]))).T
-    dist = np.sqrt(pow((r[:,0]-proj[:,0]), 2) + pow((r[:,1]-proj[:,1]), 2) + pow((r[:,2]-proj[:,2]), 2))
+    proj = l1 + np.vstack((np.multiply(t, v[:,0]), np.multiply(t, v[:,1]), \
+                           np.multiply(t, v[:,2]))).T
+    dist = np.sqrt(pow((r[:,0]-proj[:,0]), 2) + pow((r[:,1]-proj[:,1]), 2) + \
+                   pow((r[:,2]-proj[:,2]), 2))
     return proj, dist
 
 

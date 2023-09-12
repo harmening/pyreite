@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(name='pyreite',
-      version='0.1',
+      version='0.2',
       description='Pythonic, Yet Rudimentary, EIT expert',
       url='https://github.com/harmening/pyreite',
       author='Nils Harmening',

@@ -5,6 +5,34 @@ import openmeeg as om
 from data_for_testing import simple_test_shapes, find_center_of_triangle
 from pyreite.data_io import *
 
+
+def test_load_elecs_dips_txt():
+    tmp_fn ='tmp.txt' 
+    elecs = []
+    with open(tmp_fn, 'w') as f:
+        for i in range(np.random.randint(2, 6)):
+            elec = [np.random.rand() for _ in range(3)]
+            elecs.append(elec)
+            f.write('%f, %f, %f\n' % (elec[0], elec[1], elec[2]))
+    assert_array_almost_equal(elecs, load_elecs_dips_txt(tmp_fn))
+    
+def test_write_dip_file():
+    tmp_fn ='tmp.txt' 
+    dips = [[np.random.rand() for _ in range(6)] for i in \
+            range(np.random.randint(2, 6))]
+    write_dip_file(dips, tmp_fn)
+    assert_array_almost_equal(dips, load_elecs_dips_txt(tmp_fn))
+    dips = [[np.random.rand() for _ in range(3)] for i in \
+            range(np.random.randint(2, 6))]
+    write_dip_file(dips, tmp_fn)
+    dips_with_vecs = []
+    for dip in dips:
+        dips_with_vecs.append(dip+[1,0,0])
+        dips_with_vecs.append(dip+[0,1,0])
+        dips_with_vecs.append(dip+[0,0,1])
+    write_dip_file(dips, tmp_fn)
+    assert_array_almost_equal(dips_with_vecs, load_elecs_dips_txt(tmp_fn))
+
 def test_write_geom_file():
     tmp ='tmp_tri%d' 
     num = np.random.randint(2, 6)
@@ -16,11 +44,12 @@ def test_write_geom_file():
     geom_file = './tmp_test.geom'
     write_geom_file(geom, geom_file)
     geometry = om.Geometry(geom_file)
-    for filename in [geom_file] + [tmp % (i+1)+'.tri' for i in range(len(bnds))]:
-        os.remove(filename)
+    for fn in [geom_file] + [tmp % (i+1)+'.tri' for i in range(len(bnds))]:
+        os.remove(fn)
     assert not geometry.has_cond()
     assert geometry.nb_meshes() == len(bnds)
-    assert geometry.size() == np.sum([bnd[0].shape[0]+bnd[1].shape[0] for bnd in bnds])
+    assert geometry.size() == np.sum([bnd[0].shape[0]+bnd[1].shape[0] for bnd \
+                                      in bnds])
     for i, mesh in enumerate(geometry.meshes()):
         assert str(mesh) == names[i]
 
@@ -37,8 +66,9 @@ def test_write_cond_file():
     write_geom_file(geom, geom_file)
     write_cond_file(cond, cond_file)
     geometry = om.Geometry(geom_file, cond_file)
-    for filename in [geom_file, cond_file] + [tmp % (i+1)+'.tri' for i in range(len(bnds))]:
-        os.remove(filename)
+    for fn in [geom_file, cond_file] + [tmp % (i+1)+'.tri' for i in \
+               range(len(bnds))]:
+        os.remove(fn)
     assert geometry.has_cond()
     for i in range(1, len(bnds)+1):
         assert pytest.approx(cond[tmp % i], 5) == geometry.sigma(tmp % i)
@@ -60,8 +90,9 @@ def test_write_elec_file():
 
     geometry = om.Geometry(geom_file)
     sensors = om.Sensors(elec_file, geometry) 
-    for filename in [elec_file, geom_file] + [tmp % (i+1) +'.tri' for i in range(len(bnds))]:
-        os.remove(filename)
+    for fn in [elec_file, geom_file] + [tmp % (i+1) +'.tri' for i in \
+               range(len(bnds))]:
+        os.remove(fn)
     assert_array_almost_equal(om.asarray(sensors.getPositions()), elecs)
 
 
@@ -80,17 +111,6 @@ def test_write_load_tri():
             first_t = [i for i in range(len(elems)) if elems[i] == t][0]
             del elems[first_t]
         tri.append(face)
-           
-        """
-        tri.append(np.random.choice(elems,3))
-        for t in tri[len(tri)-1]:
-            first_t = [i for i in range(len(elems)) if elems[i] == t]
-            try:
-                del elems[first_t[0]]
-            except:
-                import code
-                code.interact(local=locals())
-        """
     tri = np.array(tri)
     write_tri(pos, tri, './tmp.tri')
     bnd  = load_tri('./tmp.tri')
@@ -99,4 +119,8 @@ def test_write_load_tri():
     assert_array_equal(pos, new_pos)
     assert_array_equal(tri, new_tri)
 
+
+def test_write_bnd():
+    # not in use anymore?
+    assert True
 

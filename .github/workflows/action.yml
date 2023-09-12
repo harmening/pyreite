@@ -1,0 +1,47 @@
+name: "build"
+on:
+  push:
+    branches:
+      - main
+    pull_request:
+      - main
+
+jobs:
+  python3_x:
+    strategy:
+      fail-fast: false
+      matrix:
+        python_version: [6]
+    runs-on: ubuntu-latest
+    container:
+      image: Dockerfile #ghcr.io/harmening/pyreite:v1.0
+      #credentials:
+      #  username: ${{ secrets.GHCR_USERNAME }}
+      #  password: ${{ secrets.GHCR_TOKEN }}
+      #volumes: 
+      #  - ${{ github.workspace }}:/pyreite
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: Install pyreite
+        run: |
+          cd /pyreite
+          python setup.py develop
+      - name: Install test suite
+        run: |
+          pip install pytest
+          pip install coverage
+          pip install codecov
+          pip install pytest-codecov
+      - name: Run pytest
+        run: |
+          cd /pyreite
+          coverage run -m pytest tests
+          coverage report -m
+          coverage xml
+          codecov
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v2
+        with:
+          #token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
+          files: /coverage.xml

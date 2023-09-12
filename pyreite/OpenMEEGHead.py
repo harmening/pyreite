@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from __future__ import print_function
-import os, itertools, tempfile
+import os, itertools, tempfile, time
 from random import random 
 from shutil import copyfile
 import numpy as np, openmeeg as om
@@ -10,24 +10,26 @@ from collections import OrderedDict
 
 
 class OpenMEEGHead(object):
-    def __init__(self, conductivity, geometry, elec_positions, omega=None):      
+    def __init__(self, conductivity, geometry, elec_positions, sigma=None):
         tmp = tempfile.mkdtemp()
         if isinstance(geometry, dict):
             geom_out2inside = OrderedDict([(tissue, bnd) for tissue, bnd in
-                                           geometry.items()])
-            #                              reversed(geometry.items())])
+            #                               geometry.items()])
+                                          reversed(geometry.items())])
             fn_geom = os.path.join(tmp, 'geom_'+str(random()))
             write_geom_file(geom_out2inside, fn_geom)
             self.mesh_names = list(geom_out2inside.keys()) # out to inside
         else:
             raise ValueError
-        self.geometry = geometry # outside to inside
+        #self.geometry = geometry # in to outside
+        self.geometry = geom_out2inside # outside to inside
         self.cond = conductivity
         fn_cond = os.path.join(tmp, 'cond_'+str(random()))
         write_cond_file(self.cond, fn_cond)
         self.elec_positions = elec_positions
         fn_elec = os.path.join(tmp, 'elec_'+str(random()))
-        if isinstance(elec_positions, list) or isinstance(elec_positions, np.ndarray):
+        if isinstance(elec_positions, list) or isinstance(elec_positions, \
+                                                          np.ndarray):
             write_elec_file(elec_positions, fn_elec)
         elif isinstance(elec_positions, str):
             copyfile(elec_positions, fn_elec)
@@ -40,8 +42,8 @@ class OpenMEEGHead(object):
             for tissue in geometry.keys(): 
                 os.remove(os.path.join(tmp, tissue+'.tri'))
         self.GAUSS_ORDER = 3
-        #self.ind = self._get_indices_inside_out()
-        self.ind = self._get_indices_outside_in()
+        # derivatives are implemented inside out
+        self.ind = self._get_indices_inside_out()
         self._A = None
         self._Ainv = None
         self._h2em = None
@@ -50,17 +52,18 @@ class OpenMEEGHead(object):
         self._C = None
         self._V = None
         self._condition_nb = None
-        self.omega = omega
+        self.sigma = sigma
 
-    def _get_indices_outside_in(self):
-        #idx = [i for i in range(self.geom.nb_meshes())]
-        ind = {tissue: i for i, tissue in enumerate(self.mesh_names)}
+    def _get_indices_inside_out(self):
+        ind = {tissue: i for i, tissue in enumerate(reversed(self.mesh_names))}
+        num_meshes = len(ind)
         ind['V'] = []
         ind['p'] = []
-        for m, mesh in enumerate(self.geom.meshes()):
+        # Openmeeg works outside in
+        for m, mesh in enumerate(reversed(self.geom.meshes())):
             ind['V'].append([i.getindex() for i in mesh.vertices()])
             ind['p'].append([t.getindex() for t in mesh.iterator()])
-            if m == 0:
+            if m == (num_meshes-1):
                 ind['p'][m] = []
         return ind
     
@@ -77,7 +80,9 @@ class OpenMEEGHead(object):
         """Compute/return the attribute system matrix A inverse"""
         if not isinstance(self._Ainv, np.ndarray):
             print("Warning: inverting A explicitly...")
+            a = time.time()
             self._Ainv = np.linalg.pinv(self.A)
+            print('Inverting took %.2fmin.' % ((time.time()-a)/60))
         return self._Ainv
     @property
     def eitsm(self):
@@ -116,25 +121,31 @@ class OpenMEEGHead(object):
     @property
     def C(self):
         if not isinstance(self._C, np.ndarray):
-            self._V, self._C = self._EIT_data(self.gain, self.sens)
+            _, self._C = self._EIT_data(self.gain, self.sens)
         return self._C
     @property
-    def V(self):
+    def V(self, freqs=[pow(10,7)], Iamp=[133.0e-3], ref='CAR', \
+          excluded_chan=[], nonans=False):
         if not isinstance(self._V, np.ndarray):
-            self._V, self._C = self._EIT_data(self.gain, self.sens)
+            self._V, _ = self._EIT_data(self.gain, self.sens, freqs=freqs, \
+                                        Iamp=Iamp, ref=ref, \
+                                        excluded_chan=excluded_chan, \
+                                        nonans=False)
         return self._V
 
-    def _EIT_data(self, G_eit, sens, freqs=[0], Iamp=[1], freq=0, ref='CAR',
-                  excluded_chan=[], nonans=False): # set nonans=False
+    def _EIT_data(self, G_eit, sens, freqs=[pow(10,7)], Iamp=[133.0e-3], \
+                  ref='CAR', excluded_chan=[], nonans=False):
         n_elec = sens.getNumberOfSensors()
         sel_chan = range(1, n_elec+1)
         ei = lambda idx: np.array([0]*(idx)+[1]+[0]*(n_elec-idx-1))
         V = np.zeros((len(freqs), n_elec, n_elec, n_elec))
-        C = np.zeros((len(freqs), G_eit.shape[0], G_eit.shape[1], G_eit.shape[0]))
+        C = np.zeros((len(freqs), G_eit.shape[0], G_eit.shape[1], \
+                      G_eit.shape[0]))
         for i, freq in enumerate(freqs):
             for Source, Sink in itertools.product(sel_chan, sel_chan):
-                C[i, Source-1,Sink-1,:] = np.multiply(np.array(ei(Source-1) - ei(Sink-1)),
-                                                      Iamp[i]) # * freq (later?)
+                C[i, Source-1,Sink-1,:] = np.multiply(np.array(ei(Source-1) - \
+                                                      ei(Sink-1)),
+                                                      Iamp[i]) #* freq (later?)
             this_V = np.einsum('ijl,kl', C[i], G_eit)
             V[i, :, :, :] = this_V
         if not nonans:
@@ -149,9 +160,11 @@ class OpenMEEGHead(object):
                 if ref == 'CAR':
                     this_V = np.subtract(this_V, np.nanmean(this_V, axis=2))
                 else:
-                    chans = [chan for chan in range(1,  n_elec+1) if chan not in excluded_chan]
+                    chans = [chan for chan in range(1,  n_elec+1) \
+                             if chan not in excluded_chan]
                     if ref in chans:
                         this_V = np.subtract(this_V, this_V[:,:,ref-1])
+                        this_V = np.subtract(this_V, np.nanmean(this_V, axis=2))
                     else:
                         raise NotImplementedError
                     V[i,:,:,:] = this_V
@@ -162,9 +175,14 @@ class OpenMEEGHead(object):
         return om2np(openmeeg_matrix)
 
     def set_cond(self, conductivity):
-        self.cond = conductivity # inside out
+        if isinstance(conductivity, list) or isinstance(conductivity, \
+                                                        np.ndarray):
+            conductivity = {t: c for t, c in zip(reversed(self.mesh_names), \
+                                                 conductivity)}
+        self.cond = conductivity
         geom_out2inside = OrderedDict([(tissue, bnd) for tissue, bnd in
-                                       reversed(self.geometry.items())])
+                                       self.geometry.items()])
+        #                               reversed(self.geometry.items())])
         tmp = tempfile.mkdtemp()
         fn_geom = os.path.join(tmp, 'geom_'+str(random()))
         fn_cond = os.path.join(tmp, 'cond_'+str(random()))
@@ -185,15 +203,10 @@ class OpenMEEGHead(object):
         self._C = None
         self._V = None
         self._condition_nb = None
-
-    @property
-    def condition_nb(self):
-        if not self._condition_nb:
-            self._condition_nb = np.linalg.cond(self.A)
-            print('Condition number of system matrix: %f' % self._condition_nb)
-        return self._condition_nb
-
-
+        if isinstance(self.sigma, np.ndarray) or isinstance(self.sigma, list) \
+                or isinstance(self.sigma, dict):
+            self.sigma = conductivity
+    
 
 def om2np(om_matrix_tmp):
     np_matrix = np.zeros((om_matrix_tmp.nlin(), om_matrix_tmp.ncol()))
