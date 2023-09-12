@@ -15,14 +15,14 @@
 
 ### Install pyreite
 ```bash
-git clone https://gitlab.tubit.tu-berlin.de/promillenille/pyreite
+git clone https://github.com/harmening/pyreite.git
 cd pyreite
 pip install -r requirements.txt
 python setup.py install
 ```
 
 
-## docker :whale:
+### docker :whale:
 Build pyreite image
 ```bash
 $ docker build -t pyreite .
@@ -34,4 +34,25 @@ $ docker pull harmening/pyreite:v0.2
 <br>
 
 
+## Example EIT simulation
+```bash
+import os
+from collections import OrderedDict
+from pyreite.OpenMEEGHead import OpenMEEGHead
+from pyreite.data_io import load_tri, load_elecs_dips_txt
 
+# Load Colins surface meshes
+geom = OrderedDict()
+for tissue in ['cortex', 'csf', 'skull', 'scalp']:
+    geom[tissue] = load_tri(os.path.join('tests', 'test_data', tissue+'.tri'))
+# Define conductivity values [S/m]
+cond = {'cortex': 0.201, 'csf': 1.65, 'skull': 0.01, 'scalp': 0.465}
+# Load electrode positions
+sens = load_elecs_dips_txt(os.path.join('tests', 'test_data', 'electrodes_aligned.txt'))
+# Create EIT head model
+model = OpenMEEGHead(cond, geom, sens)
+
+# Calculate EIT voltage measurement array
+V = model.V
+```
+<br>
