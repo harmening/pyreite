@@ -2,9 +2,9 @@ name: "build"
 on:
   push:
     branches:
-      - main
+      - master
     pull_request:
-      - main
+      - master
 
 jobs:
   python3_x:
@@ -14,12 +14,12 @@ jobs:
         python_version: [6]
     runs-on: ubuntu-latest
     container:
-      image: Dockerfile #ghcr.io/harmening/pyreite:v1.0
-      #credentials:
-      #  username: ${{ secrets.GHCR_USERNAME }}
-      #  password: ${{ secrets.GHCR_TOKEN }}
-      #volumes: 
-      #  - ${{ github.workspace }}:/pyreite
+      image: ghcr.io/harmening/pyreite:v0.2
+      credentials:
+        username: ${{ secrets.GHCR_USERNAME }}
+        password: ${{ secrets.GHCR_TOKEN2 }}
+      volumes: 
+        - ${{ github.workspace }}:/pyreite
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2

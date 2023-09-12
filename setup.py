@@ -17,8 +17,7 @@ def get_version(rel_path):
 
 
 setup(name='pyreite',
-      #version='0.2',
-      version=get_version("pyreite/__init__.py")
+      version=get_version("pyreite/__init__.py"),
       description='Pythonic, Yet Rudimentary, EIT expert',
       url='https://github.com/harmening/pyreite',
       author='Nils Harmening',

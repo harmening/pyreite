@@ -3,7 +3,7 @@
 **Code snippets for pythonic head modeling with Electrical Impedance Tomography (EIT).**<br>
 <br>
 [![build](https://github.com/harmening/pyreite/actions/workflows/action.yml/badge.svg)](https://github.com/harmening/pyreite/actions)
-[![coverage](https://codecov.io/gh/harmening/pyreite/branch/main/graph/badge.svg?token=LHJ5W57UE8)](https://codecov.io/gh/harmening/pyreite)
+[![codecov](https://codecov.io/gh/harmening/pyreite/graph/badge.svg?token=ASuSRfHmV1)](https://codecov.io/gh/harmening/pyreite)
 [![python](https://img.shields.io/badge/python-3.6-blue.svg)](https://www.python.org/downloads/release/python-360/)
 
 
@@ -36,19 +36,24 @@ $ docker pull harmening/pyreite:v0.2
 
 ## Example EIT simulation
 ```bash
-import os
+import os.path.join as pth
 from collections import OrderedDict
 from pyreite.OpenMEEGHead import OpenMEEGHead
 from pyreite.data_io import load_tri, load_elecs_dips_txt
 
+
 # Load Colins surface meshes
 geom = OrderedDict()
 for tissue in ['cortex', 'csf', 'skull', 'scalp']:
-    geom[tissue] = load_tri(os.path.join('tests', 'test_data', tissue+'.tri'))
+    geom[tissue] = load_tri(pth('tests', 'test_data', tissue+'.tri'))
+
 # Define conductivity values [S/m]
 cond = {'cortex': 0.201, 'csf': 1.65, 'skull': 0.01, 'scalp': 0.465}
+
 # Load electrode positions
-sens = load_elecs_dips_txt(os.path.join('tests', 'test_data', 'electrodes_aligned.txt'))
+sens = load_elecs_dips_txt(pth('tests', 'test_data', 'electrodes_aligned.txt'))
+
+
 # Create EIT head model
 model = OpenMEEGHead(cond, geom, sens)
 
