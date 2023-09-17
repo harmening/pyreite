@@ -1,10 +1,10 @@
-# :skull_and_crossbones: pyreite
-# Pythonic, Yet Rudimental, Electrical Impedance Tomography Expert
-**Code snippets for pythonic head modeling with Electrical Impedance Tomography (EIT).**<br>
-<br>
+# Pythonic, Yet Rudimental, Electrical Impedance Tomography Expert (pyreite :skull_and_crossbones:)
+**Pythonic head modeling for Electrical Impedance Tomography (EIT):**<br>
 [![build](https://github.com/harmening/pyreite/actions/workflows/action.yml/badge.svg)](https://github.com/harmening/pyreite/actions)
 [![codecov](https://codecov.io/gh/harmening/pyreite/graph/badge.svg?token=ASuSRfHmV1)](https://codecov.io/gh/harmening/pyreite)
 [![python](https://img.shields.io/badge/python-3.6-blue.svg)](https://www.python.org/downloads/release/python-360/)
+<br>
+<br>
 
 
 
