@@ -34,26 +34,27 @@ def test_create_geometry():
         os.remove(filename)
     n_elecs, dim = elecs.shape
     assert sensors.getNumberOfSensors() == n_elecs
-    assert_array_almost_equal(om.asarray(sensors.getPositions()), elecs)
-    assert geometry.nb_meshes() == len(bnds)
-    assert geometry.has_cond()
+    assert_array_almost_equal(sensors.getPositions().array(), elecs)
+    assert geometry.has_conductivities()
     assert geometry.is_nested()
-    assert geometry.nb_vertices() == np.sum([bnd[0].shape[0] for bnd in bnds])
-    assert geometry.nb_triangles() == np.sum([bnd[1].shape[0] for bnd in bnds])
-    assert geometry.size() == np.sum([bnd[0].shape[0]+bnd[1].shape[0] for bnd \
+    nb_vertices = len([i for i in geometry.vertices()])
+    nb_triangles = geometry.nb_parameters()-nb_vertices
+    assert nb_vertices == np.sum([bnd[0].shape[0] for bnd in bnds])
+    assert nb_triangles == np.sum([bnd[1].shape[0] for bnd in bnds])
+    assert geometry.nb_parameters() == np.sum([bnd[0].shape[0]+bnd[1].shape[0] for bnd \
                                       in bnds])
-    for i in range(1, len(bnds)+1):
-        assert pytest.approx(cond[tmp % i], 5) == geometry.sigma(tmp % i)
-    mesh = random.choice(geometry.meshes())
-    print(mesh)
+    for i in range(1, len(bnds)):
+        assert pytest.approx(cond[tmp % i], 5) == geometry.sigma(geometry.mesh(str(i)), geometry.mesh(str(i+1)))
+    idx = random.choice(range(1, len(bnds)+1))
+    mesh = geometry.mesh(str(idx))
     bnd = [bnd for i, bnd in enumerate(geom.values()) if i+1 == int(str(mesh))]
     pos = bnd[0][0]
-    min_idx = np.min([v.getindex() for v in mesh.vertices()])
+    min_idx = np.min([v.index() for v in mesh.vertices()])
     for vertex in mesh.vertices():
         assert_array_almost_equal(np.array([vertex(x) for x in range(dim)]),
-                                  pos[vertex.getindex()-min_idx])
+                                  pos[vertex.index()-min_idx])
     #assert mesh.get_triangles_for_vertex(vertex) == np.where(bnd[1] == \
-    #       vertex.getindex())
+    #       vertex.index())
 
 
 def test_mesh2bnd():
@@ -65,7 +66,7 @@ def test_mesh2bnd():
     write_geom_file(geom, geom_file)
     geometry = om.Geometry(geom_file, cond_file) 
     os.remove('tmp_tri1.tri')
-    mesh = geometry.meshes()[0]
+    mesh = geometry.mesh("1")
     new_pos, new_tri = mesh2bnd(mesh)
     pos, tri = bnd
     assert_array_equal(new_pos, pos)
@@ -84,3 +85,6 @@ def test_align_electrodes():
     assert_array_almost_equal(elec_aligned, bnd_colin['electrodes_aligned'], 2)
     dist = np.linalg.norm(elec_aligned-bnd_colin['electrodes_aligned'], axis=1)
     assert_array_almost_equal(dist, np.zeros(len(elec_aligned)), 2)
+
+if __name__ == '__main__':
+    test_create_geometry()

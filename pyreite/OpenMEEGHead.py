@@ -16,7 +16,7 @@ class OpenMEEGHead(object):
             geom_out2inside = OrderedDict([(tissue, bnd) for tissue, bnd in
             #                               geometry.items()])
                                           reversed(geometry.items())])
-            fn_geom = os.path.join(tmp, 'geom_'+str(random()))
+            fn_geom = os.path.join(tmp, str(random())+'.geom')
             write_geom_file(geom_out2inside, fn_geom)
             self.mesh_names = list(geom_out2inside.keys()) # out to inside
         else:
@@ -24,10 +24,10 @@ class OpenMEEGHead(object):
         #self.geometry = geometry # in to outside
         self.geometry = geom_out2inside # outside to inside
         self.cond = conductivity
-        fn_cond = os.path.join(tmp, 'cond_'+str(random()))
+        fn_cond = os.path.join(tmp, str(random())+'.cond')
         write_cond_file(self.cond, fn_cond)
         self.elec_positions = elec_positions
-        fn_elec = os.path.join(tmp, 'elec_'+str(random()))
+        fn_elec = os.path.join(tmp, str(random())+'.elec')
         if isinstance(elec_positions, list) or isinstance(elec_positions, \
                                                           np.ndarray):
             write_elec_file(elec_positions, fn_elec)
@@ -60,9 +60,10 @@ class OpenMEEGHead(object):
         ind['V'] = []
         ind['p'] = []
         # Openmeeg works outside in
-        for m, mesh in enumerate(reversed(self.geom.meshes())):
-            ind['V'].append([i.getindex() for i in mesh.vertices()])
-            ind['p'].append([t.getindex() for t in mesh.iterator()])
+        meshes = [self.geom.mesh(str(i)) for i in range(num_meshes, 0, -1)]
+        for m, mesh in enumerate(meshes):
+            ind['V'].append([i.index() for i in mesh.vertices()])
+            ind['p'].append([t.index() for t in mesh.triangles()])
             if m == (num_meshes-1):
                 ind['p'][m] = []
         return ind
@@ -184,9 +185,9 @@ class OpenMEEGHead(object):
                                        self.geometry.items()])
         #                               reversed(self.geometry.items())])
         tmp = tempfile.mkdtemp()
-        fn_geom = os.path.join(tmp, 'geom_'+str(random()))
-        fn_cond = os.path.join(tmp, 'cond_'+str(random()))
-        fn_elec = os.path.join(tmp, 'elec_'+str(random()))
+        fn_geom = os.path.join(tmp, str(random())+'.geom')
+        fn_cond = os.path.join(tmp, str(random())+'.cond')
+        fn_elec = os.path.join(tmp, str(random())+'.elec')
         write_geom_file(geom_out2inside, fn_geom)
         write_cond_file(self.cond, fn_cond)
         write_elec_file(self.elec_positions, fn_elec)

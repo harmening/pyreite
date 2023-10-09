@@ -27,17 +27,20 @@ def write_cond_file(cond, filename):
 
 def write_geom_file(geom_out2inside, filename):
     path = os.path.split(filename)[0]
-    outstr = '# Domain Description 1.0\n\nInterfaces %d Mesh\n\n' % \
-             len(geom_out2inside)
+    outstr = '# Domain Description 1.1\n\nMeshes %d' % (len(geom_out2inside))
     for tissue in geom_out2inside.keys():
-        outstr += '%s.tri\n' % tissue
-    outstr += '\nDomains %d\n\n' % (len(geom_out2inside)+1)
-    outstr += 'Domain air +1\n'
+        outstr += '\nMesh: "%s.tri"' % (os.path.join(path, tissue))
+    outstr += '\n\nInterfaces %d\n\n' % (len(geom_out2inside))
+    for i, tissue in enumerate(geom_out2inside.keys()):
+        outstr += 'Interface %s: %d\n' % (tissue, (i+1))
+    outstr += '\nDomains %d\n' % (len(geom_out2inside)+1)
+    tissues = [i for i in geom_out2inside.keys()]
+    outstr += 'Domain air: +%s\n' % (tissues[0])
     for i, tissue in enumerate(geom_out2inside.keys()):
         if i != len(geom_out2inside)-1:
-            outstr += 'Domain %s +%d -%d\n' % (tissue, i+2, i+1)
+            outstr += 'Domain %s: -%s +%s\n' % (tissue, tissues[i], tissues[i+1])
         else:
-            outstr += 'Domain %s -%d' % (tissue, i+1)
+            outstr += 'Domain %s: -%s' % (tissue, tissues[i])
     with open(filename , 'w') as f:
         f.write(outstr)
     for tissue, bnd in geom_out2inside.items():
@@ -224,7 +227,7 @@ def write_tri(pos, tri, filename, normals=None):
     """
     min_idx = np.min(np.array(tri).flatten())
     pos = np.array(pos)
-    tri = np.array(tri, dtype=np.int)
+    tri = np.array(tri, dtype=int)
     if isinstance(normals, list) or isinstance(normals, np.ndarray):
         norm = normals
     else:

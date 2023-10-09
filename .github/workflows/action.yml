@@ -11,10 +11,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python_version: [6]
+        python_version: [7, 8, 9, 10, 11]
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/harmening/pyreite
+      image: ghcr.io/harmening/pyreite:py3.${{ matrix.python_version }}
       credentials:
         username: ${{ secrets.GHCR_USERNAME }}
         password: ${{ secrets.GHCR_TOKEN2 }}

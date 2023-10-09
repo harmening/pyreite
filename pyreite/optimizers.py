@@ -68,7 +68,7 @@ def jac_hess(cond, model, V_experiment, fixed=[]):
 def tikhonov(A, b, lamb, Lpr0):
 	Lpr = pow(lamb,2) * Lpr0;
 	# Moore-Penrose generalized inverse with Tikhonov regularization
-	x = np.dot(np.linalg.inv(A.conj().T.dot(A) + Lpr), A.conj().T.dot(b))
+	x = np.dot(np.linalg.pinv(A.conj().T.dot(A) + Lpr), A.conj().T.dot(b))
 	return x
 
 def levenberg_marquardt_hessian(A, dA, b, lamb, Lpr0):
@@ -108,7 +108,7 @@ def levenberg_marquardt_hessian_noser(A, dA, b, lamb, P=None, Q=None):
     if not (isinstance(Q, np.ndarray) or isinstance(Q, list)):
         Q = np.identity(A.shape[0])
     x_0 = np.zeros(A.shape[1]) # regularize ||x|| not ||x-x_0|| 
-    x = np.dot(np.linalg.inv(A.conj().T.dot(Q.dot(A)) + dA.dot(b) + P), \
+    x = np.dot(np.linalg.pinv(A.conj().T.dot(Q.dot(A)) + dA.dot(b) + P), \
                A.conj().T.dot(Q.dot(b-A.dot(x_0))))
     return x
 
