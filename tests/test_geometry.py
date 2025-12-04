@@ -41,10 +41,11 @@ def test_create_geometry():
     nb_triangles = geometry.nb_parameters()-nb_vertices
     assert nb_vertices == np.sum([bnd[0].shape[0] for bnd in bnds])
     assert nb_triangles == np.sum([bnd[1].shape[0] for bnd in bnds])
-    assert geometry.nb_parameters() == np.sum([bnd[0].shape[0]+bnd[1].shape[0] for bnd \
-                                      in bnds])
+    assert geometry.nb_parameters() == np.sum([bnd[0].shape[0]+bnd[1].shape[0] \
+                                               for bnd in bnds])
     for i in range(1, len(bnds)):
-        assert pytest.approx(cond[tmp % i], 5) == geometry.sigma(geometry.mesh(str(i)), geometry.mesh(str(i+1)))
+        assert pytest.approx(cond[tmp % i], 5) == \
+                geometry.sigma(geometry.mesh(str(i)), geometry.mesh(str(i+1)))
     idx = random.choice(range(1, len(bnds)+1))
     mesh = geometry.mesh(str(idx))
     bnd = [bnd for i, bnd in enumerate(geom.values()) if i+1 == int(str(mesh))]

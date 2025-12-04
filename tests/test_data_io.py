@@ -75,7 +75,8 @@ def test_write_cond_file():
         os.remove(fn)
     assert geometry.has_conductivities()
     for i in range(1, len(bnds)):
-        assert pytest.approx(cond[tmp % i], 5) == geometry.sigma(geometry.mesh(str(i)), geometry.mesh(str(i+1)))
+        assert pytest.approx(cond[tmp % i], 5) == \
+                geometry.sigma(geometry.mesh(str(i)), geometry.mesh(str(i+1)))
 
 
 def test_write_elec_file():

@@ -231,7 +231,7 @@ def write_tri(pos, tri, filename, normals=None):
     if isinstance(normals, list) or isinstance(normals, np.ndarray):
         norm = normals
     else:
-        norm = get_normals(pos, tri)    
+        norm = get_normals(pos, tri)
     with open(filename, 'w') as f:
         f.write('- '+str(pos.shape[0])+'\n')
         for ii in range(pos.shape[0]):
@@ -241,4 +241,4 @@ def write_tri(pos, tri, filename, normals=None):
         f.write('-'+(' '+str(tri.shape[0]))*3+'\n')
         for ii in range(tri.shape[0]):
             f.write(' '.join([str(tri[ii][i]-min_idx) for i in range(3)])+'\n')
-    return 
+    return

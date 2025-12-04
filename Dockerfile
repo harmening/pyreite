@@ -82,5 +82,4 @@ RUN apt-get update && apt-get install -y vim
 #RUN chmod +rwx /tmp/
 #USER dockuser
 
-
-CMD ["python", "/data/lf.py"]
+CMD ["python", "/examples/cond_colin.py"]

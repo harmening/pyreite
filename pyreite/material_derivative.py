@@ -1,30 +1,12 @@
-from __future__ import print_function
 from collections import OrderedDict
 import itertools
-import numpy as np, openmeeg as om
-GAUSS_ORDER = 3
+import numpy as np
+from pyreite.EIThelpers import EIT_protocol, apply_protocol
 
 
-def EIT_protocol(num_elec, n_freq=1, protocol='all'):
-    if protocol == 'all':
-        return [True for _ in range(n_freq*num_elec*num_elec*num_elec)]
-    if protocol == 'all_realistic':
-        ND2V = []
-        for Source, Sink in itertools.product(range(num_elec), range(num_elec)):
-            if Source < Sink:
-                for measure in range(num_elec):
-                    if measure not in [Source, Sink]:
-                        ND2V.append(True)
-                    else:
-                        ND2V.append(False)
-            else:
-                for measure in range(num_elec):
-                    ND2V.append(False)
-        assert np.sum(ND2V) == num_elec*(num_elec-1)/2 * (num_elec-2)
-        assert len(ND2V) == num_elec*num_elec*num_elec
-        return ND2V
 
 
+######### 1st and 2nd Material derivatives ############
 
 def first_derivatives(head, electrodes, hm, hminv, h2em, eitsm, ind):
     # Conductivity values for meshes (from out to inside)
@@ -66,7 +48,8 @@ def first_derivatives(head, electrodes, hm, hminv, h2em, eitsm, ind):
         dV4ds3 += dCds if num_meshes == 3 else 0
         dV4ds3 = h2em.dot(dV4ds3)
     else:
-        head.first_derivatives = (dEIT, (dV4ds1, dV4ds2), (dA1ds1, dA1ds2), (dads1, dads2))
+        head.first_derivatives = (dEIT, (dV4ds1, dV4ds2), (dA1ds1, dA1ds2),
+                                  (dads1, dads2))
         return dEIT, (dV4ds1, dV4ds2), (dA1ds1, dA1ds2), (dads1, dads2)
     #dV4ds4
     if num_meshes > 3:
@@ -76,7 +59,8 @@ def first_derivatives(head, electrodes, hm, hminv, h2em, eitsm, ind):
         dV4ds4 += dCds if num_meshes == 4 else 0
         dV4ds4 = h2em.dot(dV4ds4)
     else:
-        head.first_derivatives = (dEIT, (dV4ds1, dV4ds2, dV4ds3), (dA1ds1, dA1ds2, dA1ds3), \
+        head.first_derivatives = (dEIT, (dV4ds1, dV4ds2, dV4ds3),
+                                  (dA1ds1, dA1ds2, dA1ds3),
                                   (dads1, dads2, dads3))
         return dEIT, (dV4ds1, dV4ds2, dV4ds3), (dA1ds1, dA1ds2, dA1ds3), \
                (dads1, dads2, dads3)
@@ -189,11 +173,14 @@ def second_derivatives(head, electrodes, hm, hminv, h2em, eitsm, ind, dEIT,
                 d2Vds4ds4)
 
 
+######### Jacobians ############
+
 def jacobian_per_measurements(cond, head, return_model=False):
     #_, dV4ds, _, _ = first_derivatives(head, head.sens, head.A, head.Ainv,
     #                                   head.h2em, head.eitsm, head.ind)
-    dEIT, dV4ds, dA1ds, dads = first_derivatives(head, head.sens, head.A, head.Ainv,
-                                       head.h2em, head.eitsm, head.ind)
+    dEIT, dV4ds, dA1ds, dads = first_derivatives(head, head.sens, head.A,
+                                                 head.Ainv, head.h2em,
+                                                 head.eitsm, head.ind)
     head.first_derivatives = (dEIT, dV4ds, dA1ds, dads)
     C = head.C[0] # one freq for now
     num_meshes = len(head.cond)
@@ -220,26 +207,39 @@ def jacobian_per_measurements(cond, head, return_model=False):
         return jacob, head
     return jacob
 
-def jacobian(cond, head, return_model=False):
+def jacobian(cond, head, return_model=False, ND2V=None, protocol=None):
     if isinstance(cond, list) or isinstance(cond, np.ndarray):
-        cond = {shell: cond[i] for i, shell in enumerate(reversed(head.mesh_names))} #inside out
-        #cond = {shell: cond[i] for i, shell in enumerate(head.mesh_names)} #outside in
+        #inside out
+        cond = {s: cond[i] for i, s in enumerate(reversed(head.mesh_names))}
+        #outside in
+        #cond = {shell: cond[i] for i, shell in enumerate(head.mesh_names)}
     if any([head.cond[tissue] != cond[tissue] for tissue in head.mesh_names]):
-        new_cond = OrderedDict([(tissue, cond[tissue]) for tissue in reversed(head.mesh_names)]) # inside out
-        #new_cond = OrderedDict([(tissue, cond[tissue]) for tissue in head.mesh_names]) # outside in
+        # inside out
+        new_cond = OrderedDict([(t, cond[t]) for t in reversed(head.mesh_names)])
+        # outside in
+        #new_cond = OrderedDict([(t, cond[t]) for tissue in head.mesh_names])
         head.set_cond(new_cond)
         print("jacobian: SETTING NEW CONDUCTIVITY VALUES:", new_cond)
 
     if return_model:
-        jacob_pm, head = jacobian_per_measurements(cond, head, return_model=return_model)
+        jacob_pm, head = jacobian_per_measurements(cond, head,
+                                                   return_model=return_model)
     else:
         jacob_pm = jacobian_per_measurements(cond, head)
-    ND2V = EIT_protocol(head.n_electrodes, protocol = 'all_realistic')
     num_meshes = len(head.mesh_names)
-    j = np.zeros((num_meshes, np.sum(ND2V)))
-    for i, jacob in enumerate(jacob_pm):
-        #j[num_meshes-i-1] = jacob.flatten()[ND2V] #out to inside
-        j[i] = jacob.flatten()[ND2V] #in to outside
+    if protocol is not None:
+        j = np.zeros((num_meshes, len(protocol)))
+        for i, jacob in enumerate(jacob_pm):
+            j[i] = apply_protocol(jacob, protocol)
+    else:
+        if ND2V is None:
+            ND2V = EIT_protocol(head.n_electrodes, n_freq=1,
+                                protocol='all_realistic')
+        j = np.zeros((num_meshes, np.sum(ND2V)))
+        for i, jacob in enumerate(jacob_pm):
+            #j[num_meshes-i-1] = jacob.flatten()[ND2V] #out to inside
+            j[i] = jacob.flatten()[ND2V] #in to outside
+
     j = j.T
     #condition_j = np.linalg.cond(j)
     #print('Condition number of jacobian: %f' % condition_j)
@@ -248,23 +248,33 @@ def jacobian(cond, head, return_model=False):
     return j
 
 
+
+######### Hessians ############
+
+
 def hessian_per_measurement(cond, head):
-    dEIT, _, dA1ds, dads = first_derivatives(head, head.sens, head.A,
-                                             head.Ainv, head.h2em,
-                                             head.eitsm, head.ind)
+    if isinstance(head.first_derivatives, tuple):
+        dEIT, _, dA1ds, dads = head.first_derivatives
+    else:
+        dEIT, _, dA1ds, dads = first_derivatives(head, head.sens, head.A,
+                                                 head.Ainv, head.h2em,
+                                                 head.eitsm, head.ind)
     d2V4ds = second_derivatives(head, head.sens, head.A, head.Ainv, head.h2em,
                                 head.eitsm, head.ind, dEIT, dA1ds, dads)
     C = head.C[0] # one freq for now
     num_meshes = len(head.mesh_names)
-    hess = np.zeros((num_meshes,num_meshes, C.shape[0], C.shape[1], C.shape[0]))
+    hess = np.zeros((num_meshes,num_meshes, C.shape[0],C.shape[1],C.shape[0]))
     if num_meshes == 1:
         d2Vds1ds1 = d2V4ds
     elif num_meshes == 2:
         d2Vds1ds1, d2Vds1ds2, d2Vds2ds1, d2Vds2ds2 = d2V4ds
     elif num_meshes == 3:
-        d2Vds1ds1, d2Vds1ds2, d2Vds1ds3, d2Vds2ds1, d2Vds2ds2, d2Vds2ds3, d2Vds3ds1, d2Vds3ds2, d2Vds3ds3 = d2V4ds
+        d2Vds1ds1, d2Vds1ds2, d2Vds1ds3, d2Vds2ds1, d2Vds2ds2, d2Vds2ds3, \
+            d2Vds3ds1, d2Vds3ds2, d2Vds3ds3 = d2V4ds
     elif num_meshes == 4:
-        d2Vds1ds1, d2Vds1ds2, d2Vds1ds3, d2Vds1ds4, d2Vds2ds1, d2Vds2ds2, d2Vds2ds3, d2Vds2ds4, d2Vds3ds1, d2Vds3ds2, d2Vds3ds3, d2Vds3ds4, d2Vds4ds1, d2Vds4ds2, d2Vds4ds3, d2Vds4ds4 = d2V4ds
+        d2Vds1ds1, d2Vds1ds2, d2Vds1ds3, d2Vds1ds4, d2Vds2ds1, d2Vds2ds2, \
+            d2Vds2ds3, d2Vds2ds4, d2Vds3ds1, d2Vds3ds2, d2Vds3ds3, d2Vds3ds4, \
+            d2Vds4ds1, d2Vds4ds2, d2Vds4ds3, d2Vds4ds4 = d2V4ds
     else:
         raise NotImplementedError
 
@@ -291,22 +301,31 @@ def hessian_per_measurement(cond, head):
         #assert (hess[3,2] == hess[2,3]).all()
     return hess
 
-def hessian(cond, head):
+def hessian(cond, head, ND2V=None, protocol=None):
     if isinstance(cond, list) or isinstance(cond, np.ndarray):
-        cond = {shell: cond[i] for i, shell in enumerate(reversed(head.mesh_names))}
-        #cond = {shell: cond[i] for i, shell in enumerate(head.mesh_names)} #outside in
+        cond = {s: cond[i] for i, s in enumerate(reversed(head.mesh_names))}
+        #cond = {s: cond[i] for i, s in enumerate(head.mesh_names)} #outside in
     if any([head.cond[tissue] != cond[tissue] for tissue in head.mesh_names]):
-        new_cond = OrderedDict([(tissue, cond[tissue]) for tissue in reversed(head.mesh_names)]) # inside out
-        #new_cond = OrderedDict([(tissue, cond[tissue]) for tissue in head.mesh_names]) # outside in
+        # inside out
+        new_cond = OrderedDict([(t, cond[t]) for t in reversed(head.mesh_names)])
+        # outside in
+        #new_cond = OrderedDict([(t, cond[t]) for t in head.mesh_names])
         head.set_cond(new_cond)
         print("hessian: SETTING NEW CONDUCTIVITY VALUES:", new_cond)
 
     hess_pm = hessian_per_measurement(cond, head)
-    ND2V = EIT_protocol(head.n_electrodes, protocol = 'all_realistic')
     num_meshes = len(head.mesh_names)
-    h = np.zeros((num_meshes,num_meshes, np.sum(ND2V)))
-    for i, j in itertools.product(range(num_meshes), range(num_meshes)):
-        h[i,j] = hess_pm[i,j].flatten()[ND2V] # in to outside
+    if protocol is not None:
+        h = np.zeros((num_meshes,num_meshes, len(protocol)))
+        for i, j in itertools.product(range(num_meshes), range(num_meshes)):
+            h[i,j] = apply_protocol(hess_pm[i,j], protocol) # in to outside
+    else:
+        if ND2V is None:
+            ND2V = EIT_protocol(head.n_electrodes, n_freq=1,
+                                protocol='all_realistic')
+        h = np.zeros((num_meshes,num_meshes, np.sum(ND2V)))
+        for i, j in itertools.product(range(num_meshes), range(num_meshes)):
+            h[i,j] = hess_pm[i,j].flatten()[ND2V] # in to outside
     #condition_h = np.linalg.cond(h)
     #print('Condition number of hessian:', condition_h)
     return h

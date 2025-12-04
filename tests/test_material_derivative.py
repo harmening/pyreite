@@ -38,16 +38,6 @@ def small_cond_pertubation(head, mesh_nb):
     return diff
 
 
-def test_EIT_protocol():
-    num_elec = np.random.randint(100)
-    ND2V = EIT_protocol(num_elec, n_freq=1, protocol='all_realistic')
-    assert np.sum(ND2V) == num_elec*(num_elec-1)/2 * (num_elec-2)
-    assert len(ND2V) == pow(num_elec, 3)
-    n_freq = np.random.randint(10)
-    ND2V = EIT_protocol(num_elec, n_freq=n_freq, protocol='all')
-    assert len(ND2V) == np.sum(ND2V) == (n_freq*pow(num_elec, 3))
-
-
 def test_first_derivatives():
     num_meshes = np.random.randint(1, 4)
     bnds = simple_test_shapes(num_nested_meshes=num_meshes)
@@ -120,13 +110,16 @@ def test_jacobian():
         fin_diff.append(diff.flatten()[ND2V])
         #head.set_cond(cond)
         
-        ##dV /  |V|  approx  J_condition_nb  *  J-J_perturbed / |J| +   sigma - (sigma+eps) / |sigma|
-        #new_cond_values = [head_minus.cond[shell] for shell in head_minus.mesh_names] 
+        ##dV / |V|  approx  J_condition_nb * J-J_perturbed / |J| +  
+                                                  sigma - (sigma+eps) / |sigma|
+        #new_cond_values = [head_minus.cond[shell] for shell in \
+                                                        head_minus.mesh_names] 
         #J_eps = jacobian(new_cond_values, head_minus, None).T
         #V_diff = deltaV(act_cond, head_minus, f_x)
         #left = V_diff / np.linalg.norm(V_diff[i])
         #right = (J[i]-J_eps)/np.linalg.norm(J[i]) + \
-        #        (np.array(orig_cond[i])-np.array(new_cond_values[i]))/np.linalg.norm(orig_cond[i])
+        #        (np.array(orig_cond[i])-np.array(new_cond_values[i])) / \
+                                                np.linalg.norm(orig_cond[i])
         #print(left)
         #print(np.linalg.norm(J[i])*right)
         #assert_array_almost_equal(left, np.linalg.norm(J[i])*right)
@@ -141,7 +134,8 @@ def test_jacobian():
 # Testing the perturbation with taking the condition number into account
 dads1_eps = dAds1(new_cond_list, head_eps.ind, om2np(head_eps.A))
 left = om2np(f_x - f_x_eps) / np.linalg.norm(om2np(head.A))
-right = (dads1 - dads1_eps) / np.linalg.norm(dads1) + (cond_list[0]-new_cond_list[0]) / np.linalg.norm(cond_list[0])
+right = (dads1 - dads1_eps) / np.linalg.norm(dads1) + \
+        (cond_list[0]-new_cond_list[0]) / np.linalg.norm(cond_list[0])
 condition_nb = np.linalg.cond(dads1)
 if abs(condition_nb) == np.inf:
     condition_nb = 1

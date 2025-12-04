@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from __future__ import print_function
 import os, itertools, tempfile, time
-from random import random 
+from random import random
 from shutil import copyfile
 import numpy as np, openmeeg as om
 from pyreite.data_io import *
@@ -9,8 +9,13 @@ from pyreite.geometry import create_geometry
 from collections import OrderedDict
 
 
+def nandot(v1, v2):
+    return np.where(np.isnan(v1),0,v1).dot(np.where(np.isnan(v2),0,v2))
+
+
 class OpenMEEGHead(object):
-    def __init__(self, conductivity, geometry, elec_positions, sigma=None):
+    def __init__(self, conductivity, geometry, elec_positions, sigma=None,
+                 omega=None):
         tmp = tempfile.mkdtemp()
         if isinstance(geometry, dict):
             geom_out2inside = OrderedDict([(tissue, bnd) for tissue, bnd in
@@ -35,11 +40,11 @@ class OpenMEEGHead(object):
             copyfile(elec_positions, fn_elec)
         else:
             raise ValueError
-        self.geom, self.sens = create_geometry(fn_geom, fn_cond, fn_elec)     
+        self.geom, self.sens = create_geometry(fn_geom, fn_cond, fn_elec)
         for fn in [fn_geom, fn_cond, fn_elec]:
-            os.remove(fn)    
+            os.remove(fn)
         if isinstance(geometry, dict):
-            for tissue in geometry.keys(): 
+            for tissue in geometry.keys():
                 os.remove(os.path.join(tmp, tissue+'.tri'))
         self.GAUSS_ORDER = 3
         # derivatives are implemented inside out
@@ -53,6 +58,8 @@ class OpenMEEGHead(object):
         self._V = None
         self._condition_nb = None
         self.sigma = sigma
+        self.omega = omega
+        self.first_derivatives = None
 
     def _get_indices_inside_out(self):
         ind = {tissue: i for i, tissue in enumerate(reversed(self.mesh_names))}
@@ -67,7 +74,7 @@ class OpenMEEGHead(object):
             if m == (num_meshes-1):
                 ind['p'][m] = []
         return ind
-    
+
     @property
     def A(self):
         """Compute/return the attribute system matrix A"""
@@ -125,23 +132,29 @@ class OpenMEEGHead(object):
             _, self._C = self._EIT_data(self.gain, self.sens)
         return self._C
     @property
-    def V(self, freqs=[pow(10,7)], Iamp=[133.0e-3], ref='CAR', \
-          excluded_chan=[], nonans=False):
+    def V(self):
+        if not isinstance(self._V, np.ndarray):
+            self._V, _ = self._EIT_data(self.gain, self.sens, \
+                                        freqs=[pow(10,7)], Iamp=[133.0e-3], \
+                                        ref='no_ref', excluded_chan=[], \
+                                        nonans=True)
+        return self._V
+    def Vsetter(self, freqs=[pow(10,7)], Iamp=[133.0e-3], ref='no_ref', \
+          excluded_chan=[], nonans=True):
         if not isinstance(self._V, np.ndarray):
             self._V, _ = self._EIT_data(self.gain, self.sens, freqs=freqs, \
                                         Iamp=Iamp, ref=ref, \
                                         excluded_chan=excluded_chan, \
-                                        nonans=False)
+                                        nonans=nonans)
         return self._V
 
     def _EIT_data(self, G_eit, sens, freqs=[pow(10,7)], Iamp=[133.0e-3], \
-                  ref='CAR', excluded_chan=[], nonans=False):
+                  ref='no_ref', excluded_chan=[], nonans=True):
         n_elec = sens.getNumberOfSensors()
         sel_chan = range(1, n_elec+1)
         ei = lambda idx: np.array([0]*(idx)+[1]+[0]*(n_elec-idx-1))
-        V = np.zeros((len(freqs), n_elec, n_elec, n_elec))
-        C = np.zeros((len(freqs), G_eit.shape[0], G_eit.shape[1], \
-                      G_eit.shape[0]))
+        V = np.zeros((len(freqs), n_elec, n_elec, G_eit.shape[0]))
+        C = np.zeros((len(freqs), n_elec, G_eit.shape[1], G_eit.shape[1]))
         for i, freq in enumerate(freqs):
             for Source, Sink in itertools.product(sel_chan, sel_chan):
                 C[i, Source-1,Sink-1,:] = np.multiply(np.array(ei(Source-1) - \
@@ -149,8 +162,8 @@ class OpenMEEGHead(object):
                                                       Iamp[i]) #* freq (later?)
             this_V = np.einsum('ijl,kl', C[i], G_eit)
             V[i, :, :, :] = this_V
-        if not nonans:
-            for i, this_V in enumerate(V):
+        for i, this_V in enumerate(V):
+            if not nonans:
                 for Source, Sink in itertools.product(sel_chan, sel_chan):
                     this_V[Source-1,Sink-1,Source-1]=np.nan
                     this_V[Source-1,Sink-1,Sink-1]=np.nan
@@ -158,17 +171,24 @@ class OpenMEEGHead(object):
                     this_V[e-1,:,:] = np.nan
                     this_V[:,e-1,:] = np.nan
                     this_V[:,:,e-1] = np.nan
-                if ref == 'CAR':
-                    this_V = np.subtract(this_V, np.nanmean(this_V, axis=2))
+            if ref == 'CAR':
+                #this_V = np.subtract(this_V, np.nanmean(this_V, axis=2))
+                car = np.nanmean(this_V, axis=2)
+                for t in range(G_eit.shape[0]):
+                    this_V[:,:,t] = np.subtract(this_V[:,:,t], car)
+                #    import code
+                #    code.interact(local=locals())
+            elif ref == 'no_ref': # for testing only
+                pass
+            else:
+                chans = [chan for chan in range(1,  n_elec+1) \
+                         if chan not in excluded_chan]
+                if ref in chans:
+                    this_V = np.subtract(this_V, this_V[:,:,ref-1])
+                    #this_V = np.subtract(this_V, np.nanmean(this_V, axis=2)) #+CAR
                 else:
-                    chans = [chan for chan in range(1,  n_elec+1) \
-                             if chan not in excluded_chan]
-                    if ref in chans:
-                        this_V = np.subtract(this_V, this_V[:,:,ref-1])
-                        this_V = np.subtract(this_V, np.nanmean(this_V, axis=2))
-                    else:
-                        raise NotImplementedError
-                    V[i,:,:,:] = this_V
+                    raise NotImplementedError
+            V[i,:,:,:] = this_V
         return V, C
 
     def asnp(self, openmeeg_matrix):
@@ -191,11 +211,11 @@ class OpenMEEGHead(object):
         write_geom_file(geom_out2inside, fn_geom)
         write_cond_file(self.cond, fn_cond)
         write_elec_file(self.elec_positions, fn_elec)
-        self.geom, self.sens = create_geometry(fn_geom, fn_cond, fn_elec)     
+        self.geom, self.sens = create_geometry(fn_geom, fn_cond, fn_elec)
         for fn in [fn_geom, fn_cond, fn_elec]:
-            os.remove(fn)    
+            os.remove(fn)
         if isinstance(self.geometry, dict):
-            for tissue in self.geometry.keys(): 
+            for tissue in self.geometry.keys():
                 os.remove(os.path.join(tmp, tissue+'.tri'))
         self._A = None
         self._Ainv = None
@@ -207,7 +227,51 @@ class OpenMEEGHead(object):
         if isinstance(self.sigma, np.ndarray) or isinstance(self.sigma, list) \
                 or isinstance(self.sigma, dict):
             self.sigma = conductivity
-    
+
+    """
+    def neumann_old(self):
+        # rename to state variable u
+        return self.Ainv.dot(self.eitsm)
+
+    def neumann(self, freqs=[pow(10,7)], Iamp=[133.0e-3], ref='CAR', \
+          excluded_chan=[], nonans=False):
+        if not isinstance(self._V, np.ndarray):
+            all_gain = np.dot(self.Ainv, self.eitsm)
+            self._V, _ = self._EIT_data(all_gain, self.sens, freqs=freqs, \
+                                        Iamp=Iamp, ref=ref, \
+                                        excluded_chan=excluded_chan, \
+                                        nonans=False)
+        return self._V
+    """
+
+    def dirichlet(self, neumann_data, exp_V_sens):
+        # rename to state variable p
+        #gain_all = self.neumann()
+        gain_all = self.Ainv.dot(self.eitsm)
+        # apply protocol
+        u_minus_f = neumann_data - exp_V_sens
+        #ret = u_minus_f.dot(gain_all.T)
+        ret = nandot(u_minus_f, gain_all.T)
+        # EEG RHS should be implemented here -> missing in openmeeg??
+        """
+        # Trying to get dirichlet data from approximating electrodes as dipoles
+        # NOT WORKING!
+        mesh = self.geom.meshes()[0]
+        om_pos = {i.getindex(): [i(0), i(1), i(2)] for i in mesh.vertices()}
+        om_pos = np.array([p for i, p in sorted(om_pos.items())])
+        om_tris = np.array([[t(0).getindex(), t(1).getindex(), t(2).getindex()]
+                             for t in mesh.iterator()])
+        nrms = get_normals(om_pos, om_tris)
+        dips = np.concatenate((om_pos, nrms), axis=1)
+        self.add_dipoles(dips)
+        diri = self.V_dip('eit')
+        pot_at_elecs_from_cur_inj = om2np(self.h2em).dot(self.neumann())
+        return diri.dot(pot_at_elecs_from_cur_inj)
+        """
+        # as workaround we use the neumann data, too (-> same unique solution)
+        #return om2np(self.Ainv).dot(om2np(self.eitsm))
+        return ret
+
 
 def om2np(om_matrix_tmp):
     np_matrix = np.zeros((om_matrix_tmp.nlin(), om_matrix_tmp.ncol()))

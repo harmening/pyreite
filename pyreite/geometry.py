@@ -18,7 +18,8 @@ def make_geometry(geom_out2inside, cond):
         mesh_vertices = mesh.geometry().vertices()
         vertices = np.array([vertex.array() for vertex in mesh_vertices])
         mesh_triangles = mesh.triangles()
-        triangles = np.array([mesh.triangle(triangle).array() for triangle in mesh_triangles])
+        triangles = np.array([mesh.triangle(triangle).array() for triangle in
+                              mesh_triangles])
         return vertices, triangles
 
     meshes = dict()
@@ -30,10 +31,14 @@ def make_geometry(geom_out2inside, cond):
     interfaces = {'interface'+str(i+1): [(tissue, om.OrientedMesh.Normal)] \
                   for i, tissue in reversed(geom_out2inside.keys())}
 
-    domains = {tissue: ([('interface'+str(i+1),  om.SimpleDomain.Inside), ('interface'+str(i), om.SimpleDomain.Outside)], cond[tissue]) for i, tissue in reversed(geom_out2inside.keys())}
-    domains['air'] = ([('interface'+str(len(interfaces)), om.SimpleDomain.Outside)], 0.0)
+    domains = {tissue: ([('interface'+str(i+1),  om.SimpleDomain.Inside),
+                         ('interface'+str(i), om.SimpleDomain.Outside)],
+                        cond[t]) for i, t in reversed(geom_out2inside.keys())}
+    domains['air'] = ([('interface'+str(len(interfaces)),
+                        om.SimpleDomain.Outside)], 0.0)
     innermost = [tiss for tiss in geom_out2inside.keys()][-1]
-    domains[innermost] = ([('interface1', om.SimpleDomain.Inside)], cond[innermost])
+    domains[innermost] = ([('interface1', om.SimpleDomain.Inside)],
+                          cond[innermost])
 
     g1 = om.make_geometry(meshes, interfaces, domains)
     return g1
@@ -46,7 +51,8 @@ def mesh2bnd(mesh):
     for v in mesh.vertices():
         verts[v.index()-min_idx,:] = [v(xx) for xx in range(3)]
     # improve security here? (-> if vertices are not steadily ongoing numbers)
-    tris = [[tri.vertex(i).index()-min_idx for i in range(3)] for tri in mesh.triangles()]
+    tris = [[tri.vertex(i).index()-min_idx for i in range(3)] for tri in
+            mesh.triangles()]
     return np.array(verts), np.array(tris)
 
 
@@ -95,10 +101,10 @@ def ptriprojn(v1, v2, v3, r, flag=0):
         # point is on the edge, or on one of the corners
         sel= la<0
         proj[sel,:], dist[sel] = plinprojn(v1[sel,:], v3[sel,:], r, 1)
-    
+
         sel = (mu<0) & (la>=0)
         proj[sel,:], dist[sel] = plinprojn(v1[sel,:], v2[sel,:], r, 1)
-    
+
         # la+mu>1 & mu>0 & la>0 -> project onto vec2
         sel = ((la+mu)>1) & (mu>=0) & (la>=0)
         proj[sel,:], dist[sel] = plinprojn(v2[sel,:], v3[sel,:], r, 1)
@@ -108,7 +114,7 @@ def ptriprojn(v1, v2, v3, r, flag=0):
 def lmoutrn(v1, v2, v3, r):
     # LMOUTRN computes the la/mu parameters of a point projected to triangles
     if len(r) == 1 and len(v1) > 1:
-        r = np.repeat(r, len(v1)).T.reshape(v1.T.shape).T   
+        r = np.repeat(r, len(v1)).T.reshape(v1.T.shape).T
 
     # compute la/mu parameters
     vec0 = r  - v1
@@ -116,7 +122,7 @@ def lmoutrn(v1, v2, v3, r):
     #vec2 = v3 - v2
     vec3 = v3 - v1
     origin = np.repeat(np.mean(np.vstack((v1, v2, v3)), axis=0), \
-                       len(v1)).T.reshape(v1.T.shape).T     
+                       len(v1)).T.reshape(v1.T.shape).T
     tmp = np.empty((3, 2, len(v1)))
     tmp[:,0,:] = vec1.T
     tmp[:,1,:] = vec3.T
@@ -126,13 +132,13 @@ def lmoutrn(v1, v2, v3, r):
     la = np.sum(np.multiply(vec0.T, tmp[:,0,:]), axis=0)
     mu = np.sum(np.multiply(vec0.T, tmp[:,1,:]), axis=0)
 
-            
+
     # determine the projection onto the plane of the triangle
     proj  = v1 + np.multiply(np.vstack((la, la, la)).T, vec1) + \
             np.multiply(np.vstack((mu, mu, mu)).T, vec3)
 
     # determine the signed distance from the original point to its projection
-    # where the sign is negative if the original point is closer to the origin 
+    # where the sign is negative if the original point is closer to the origin
     origin_r    = np.sum(pow((r    - origin), 2), axis=1)
     origin_proj = np.sum(pow((proj - origin), 2), axis=1)
 
@@ -144,7 +150,7 @@ def lmoutrn(v1, v2, v3, r):
 
 def plinprojn(l1, l2, r, flag=False):
     # PLINPROJN projects a point onto a line or linepiece
-    # where l1 and l2 are Nx3 matrices with the begin and endpoints of the 
+    # where l1 and l2 are Nx3 matrices with the begin and endpoints of the
     # linepieces, and r is the point that is projected onto the lines
     # This is a vectorized version of Robert's ptriproj function and is
     # generally faster than a for-loop around the mex-file.

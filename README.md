@@ -18,8 +18,8 @@ Knowing these subject-dependent (and also within subject-dependent) parameters *
 
 ## Get up and running
 ### Prerequisites
-- [Python3](https://www.python.org/downloads/)
-- [OpenMEEG](https://github.com/openmeeg/openmeeg/blob/master/README.rst#build-openmeeg-from-source) 2.4 with python wrapping: compile with `"-DENABLE_PYTHON=ON"`
+- [Python3](https://www.python.org/downloads/) (>=3.7)
+- [OpenMEEG](https://github.com/openmeeg/openmeeg/blob/master/README.rst#build-openmeeg-from-source) (2.4.7) with python wrapper (compiled with `"-DENABLE_PYTHON=ON"`)
 
 ### Install pyreite
 ```bash
@@ -37,7 +37,7 @@ $ docker build -t pyreite .
 ```
 or pull from [docker hub](https://hub.docker.com/r/harmening/pyreite)
 ```bash
-$ docker pull harmening/pyreite:v0.2
+$ docker pull harmening/pyreite:v1.2
 ```
 <br>
 
@@ -69,3 +69,15 @@ model = OpenMEEGHead(cond, geom, sens)
 V = model.V
 ```
 <br>
+
+
+
+## Example EIT conductivity optimization
+Simply run the example script:
+```bash
+python examples/cond_colin.py
+```
+... or when using docker:
+```bash
+docker run -t harmening/pyreite:v1.2 python /examples/cond_colin.py
+```
