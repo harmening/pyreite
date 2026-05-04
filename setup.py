@@ -18,7 +18,7 @@ def get_version(rel_path):
 
 setup(name='pyreite',
       version=get_version("pyreite/__init__.py"),
-      description='Pythonic, Yet Rudimentary, EIT expert',
+      description='Pythonic, Yet Robust, EIT expert',
       long_description=read("README.md"),
       long_description_content_type='text/markdown',
       url='https://github.com/harmening/pyreite',
