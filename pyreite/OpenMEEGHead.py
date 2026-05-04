@@ -224,6 +224,7 @@ class OpenMEEGHead(object):
         self._C = None
         self._V = None
         self._condition_nb = None
+        self.first_derivatives = None
         if isinstance(self.sigma, np.ndarray) or isinstance(self.sigma, list) \
                 or isinstance(self.sigma, dict):
             self.sigma = conductivity

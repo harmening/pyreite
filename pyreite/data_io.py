@@ -5,14 +5,13 @@ import h5py, scipy.io as sio
 
 
 def load_elecs_dips_txt(fn):
-    # Load electrodes or dipoles from file
+    """Load electrodes or dipoles from a whitespace- or comma-separated file."""
+    with open(fn, 'r') as f:
+        lines = f.readlines()
     try:
-        with open(fn, 'r') as f:
-    	    dips = [[float(i) for i in line.split()] for line in f.readlines()]
-    except:
-        with open(fn, 'r') as f:
-    	    dips = [[float(i) for i in line.split(',')] for line in f.readlines()]
-    return dips
+        return [[float(i) for i in line.split()] for line in lines]
+    except ValueError:
+        return [[float(i) for i in line.split(',')] for line in lines]
 
 
 def write_cond_file(cond, filename):
@@ -174,8 +173,8 @@ def surface_area(vertices, faces):
     y3= vertices[faces[:,2],1]
     z3= vertices[faces[:,2],2]
     area = np.sqrt(pow((y2-y1)*(z3-z1)-(y3-y1)*(z2-z1), 2) +
-		   pow((z2-z1)*(x3-x1)-(z3-z1)*(x2-x1), 2) +
-		   pow((x2-x1)*(y3-y1)-(x3-x1)*(y2-y1), 2))
+                   pow((z2-z1)*(x3-x1)-(z3-z1)*(x2-x1), 2) +
+                   pow((x2-x1)*(y3-y1)-(x3-x1)*(y2-y1), 2))
     return sum(area)
 
 def verts_normals_orientation(vertices, faces, normals, normalsIn):

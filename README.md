@@ -44,7 +44,7 @@ $ docker pull harmening/pyreite:v1.2
 
 ## Example EIT simulation
 ```bash
-import os.path.join as pth
+from os.path import join as pth
 from collections import OrderedDict
 from pyreite.OpenMEEGHead import OpenMEEGHead
 from pyreite.data_io import load_tri, load_elecs_dips_txt

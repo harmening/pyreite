@@ -41,24 +41,27 @@ def loss_residuals(cond, model, V_experiment, fixed=[], scale=False, ND2V=None,
                                 protocol='all_realistic')
         V = V.flatten()[ND2V]
     if scale:
-        V_experiment *= np.max(np.abs(V))
+        V_experiment = V_experiment * np.max(np.abs(V))
     dV = -(V_experiment-V)
     Error=0.5*np.nansum(pow(dV, 2));
     printgreen("Error: %f\n" % Error)
     return dV#, Error
 
-def jac(cond, model, V_experiment, fixed=[]):
+def jac(cond, model, V_experiment, fixed=[], ND2V=None, protocol=None):
     if any([model.cond[tissue] != cond[tissue] for tissue in model.mesh_names]):
         model.set_cond(cond)
         printred("jac: SETTING NEW CONDUCTIVITY VALUES: "+str(cond))
-    J = jacobian(cond, model)
+    J = jacobian(cond, model, return_model=False, ND2V=ND2V, protocol=protocol)
+    removed_cols = [idx for idx, tiss in enumerate(reversed(model.mesh_names)) if tiss in fixed]
+    for idx in reversed(removed_cols):
+        J = np.delete(J, idx, 1)  # delete idx column of J
     return J
 
-def hess(cond, model, V_experiment, fixed=[]):
+def hess(cond, model, V_experiment, fixed=[], ND2V=None, protocol=None):
     if any([model.cond[tissue] != cond[tissue] for tissue in model.mesh_names]):
         model.set_cond(cond)
         printred("hess: SETTING NEW CONDUCTIVITY VALUES: "+str(cond))
-    H = hessian(cond, model)
+    H = hessian(cond, model, ND2V=ND2V, protocol=protocol)
     return H
 
 def jac_hess(cond, model, V_experiment, fixed=[], ND2V=None, protocol=None):

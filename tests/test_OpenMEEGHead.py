@@ -44,6 +44,12 @@ def test_OpenMEEGHead():
     assert head.gain.shape[0] == head.gain.shape[1] == electrodes.shape[0]
     #assert (head.h2em >= 0.0).all() and (head.h2em <= 1.0).all()   
     assert int(np.round(np.sum(head.h2em),0)) == electrodes.shape[0]
+    head.first_derivatives = ('stale',)
     head.set_cond(cond)
     assert head._A == None
     assert head._Ainv == None
+    assert head._eitsm == None
+    assert head._gain == None
+    assert head._C == None
+    assert head._V == None
+    assert head.first_derivatives is None
