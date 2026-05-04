@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 from __future__ import print_function
 import os, itertools, tempfile, time
-from random import random
 from shutil import copyfile
 import numpy as np, openmeeg as om
 from pyreite.data_io import write_cond_file, write_elec_file, write_geom_file
@@ -16,35 +15,30 @@ def nandot(v1, v2):
 class OpenMEEGHead(object):
     def __init__(self, conductivity, geometry, elec_positions, sigma=None,
                  omega=None):
-        tmp = tempfile.mkdtemp()
-        if isinstance(geometry, dict):
-            geom_out2inside = OrderedDict([(tissue, bnd) for tissue, bnd in
-                                          reversed(geometry.items())])
-            fn_geom = os.path.join(tmp, str(random())+'.geom')
-            write_geom_file(geom_out2inside, fn_geom)
-            self.mesh_names = list(geom_out2inside.keys()) # out to inside
-        else:
+        if not isinstance(geometry, dict):
             raise ValueError
-        #self.geometry = geometry # in to outside
+        if not isinstance(elec_positions, (list, np.ndarray, str)):
+            raise ValueError
+
+        geom_out2inside = OrderedDict([(tissue, bnd) for tissue, bnd in
+                                      reversed(geometry.items())])
+        self.mesh_names = list(geom_out2inside.keys()) # out to inside
         self.geometry = geom_out2inside # outside to inside
         self.cond = conductivity
-        fn_cond = os.path.join(tmp, str(random())+'.cond')
-        write_cond_file(self.cond, fn_cond)
         self.elec_positions = elec_positions
-        fn_elec = os.path.join(tmp, str(random())+'.elec')
-        if isinstance(elec_positions, list) or isinstance(elec_positions, \
-                                                          np.ndarray):
-            write_elec_file(elec_positions, fn_elec)
-        elif isinstance(elec_positions, str):
-            copyfile(elec_positions, fn_elec)
-        else:
-            raise ValueError
-        self.geom, self.sens = create_geometry(fn_geom, fn_cond, fn_elec)
-        for fn in [fn_geom, fn_cond, fn_elec]:
-            os.remove(fn)
-        if isinstance(geometry, dict):
-            for tissue in geometry.keys():
-                os.remove(os.path.join(tmp, tissue+'.tri'))
+
+        with tempfile.TemporaryDirectory() as tmp:
+            fn_geom = os.path.join(tmp, 'head.geom')
+            fn_cond = os.path.join(tmp, 'head.cond')
+            fn_elec = os.path.join(tmp, 'head.elec')
+            write_geom_file(geom_out2inside, fn_geom)
+            write_cond_file(self.cond, fn_cond)
+            if isinstance(elec_positions, str):
+                copyfile(elec_positions, fn_elec)
+            else:
+                write_elec_file(elec_positions, fn_elec)
+            self.geom, self.sens = create_geometry(fn_geom, fn_cond, fn_elec)
+
         self.GAUSS_ORDER = 3
         # derivatives are implemented inside out
         self.ind = self._get_indices_inside_out()
@@ -202,19 +196,14 @@ class OpenMEEGHead(object):
         self.cond = conductivity
         geom_out2inside = OrderedDict([(tissue, bnd) for tissue, bnd in
                                        self.geometry.items()])
-        tmp = tempfile.mkdtemp()
-        fn_geom = os.path.join(tmp, str(random())+'.geom')
-        fn_cond = os.path.join(tmp, str(random())+'.cond')
-        fn_elec = os.path.join(tmp, str(random())+'.elec')
-        write_geom_file(geom_out2inside, fn_geom)
-        write_cond_file(self.cond, fn_cond)
-        write_elec_file(self.elec_positions, fn_elec)
-        self.geom, self.sens = create_geometry(fn_geom, fn_cond, fn_elec)
-        for fn in [fn_geom, fn_cond, fn_elec]:
-            os.remove(fn)
-        if isinstance(self.geometry, dict):
-            for tissue in self.geometry.keys():
-                os.remove(os.path.join(tmp, tissue+'.tri'))
+        with tempfile.TemporaryDirectory() as tmp:
+            fn_geom = os.path.join(tmp, 'head.geom')
+            fn_cond = os.path.join(tmp, 'head.cond')
+            fn_elec = os.path.join(tmp, 'head.elec')
+            write_geom_file(geom_out2inside, fn_geom)
+            write_cond_file(self.cond, fn_cond)
+            write_elec_file(self.elec_positions, fn_elec)
+            self.geom, self.sens = create_geometry(fn_geom, fn_cond, fn_elec)
         self._A = None
         self._Ainv = None
         self._eitsm = None

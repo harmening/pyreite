@@ -25,8 +25,7 @@ Knowing these subject-dependent (and also within subject-dependent) parameters *
 ```bash
 git clone https://github.com/harmening/pyreite.git
 cd pyreite
-pip install -r requirements.txt
-python setup.py install
+pip install .
 ```
 
 

@@ -71,9 +71,10 @@ def levenberg_marquardt_hessian(A, dA, b, lamb, Lpr0):
     x = theta1 + theta2
     return x
 
-def is_posdef(M):
-    w, _ = np.linalg.eigh(M)
-    return True if (w > 0).all() else False
+def is_posdef(M, tol=1e-12):
+    """Positive-(semi)definite check tolerant of numerical noise near zero."""
+    w = np.linalg.eigvalsh(M)
+    return bool((w > -tol).all())
 
 def levenberg_marquardt_hessiancheck(A, dA, b, lamb, Lpr0):
     Lpr = lamb**2 * Lpr0;
