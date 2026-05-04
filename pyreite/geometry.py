@@ -139,10 +139,10 @@ def lmoutrn(v1, v2, v3, r):
 
     # determine the signed distance from the original point to its projection
     # where the sign is negative if the original point is closer to the origin
-    origin_r    = np.sum(pow((r    - origin), 2), axis=1)
-    origin_proj = np.sum(pow((proj - origin), 2), axis=1)
+    origin_r    = np.sum((r    - origin)**2, axis=1)
+    origin_proj = np.sum((proj - origin)**2, axis=1)
 
-    dist = np.sqrt(np.sum(pow((r - proj), 2), axis=1)) * \
+    dist = np.sqrt(np.sum((r - proj)**2, axis=1)) * \
            np.sign(origin_r-origin_proj)
 
     return la, mu, dist, proj
@@ -161,7 +161,7 @@ def plinprojn(l1, l2, r, flag=False):
 
     v  = l2-l1                   # vector from l1 to l2
     dp = r -l1 #bsxfun(@minus, r, l1);  # vector from l1 to r
-    t  = np.sum(np.multiply(dp, v), 1) / np.sum(pow(v, 2),1)
+    t  = np.sum(np.multiply(dp, v), 1) / np.sum(v**2, 1)
 
     if flag:
         for i in range(len(t)):
@@ -172,8 +172,8 @@ def plinprojn(l1, l2, r, flag=False):
 
     proj = l1 + np.vstack((np.multiply(t, v[:,0]), np.multiply(t, v[:,1]), \
                            np.multiply(t, v[:,2]))).T
-    dist = np.sqrt(pow((r[:,0]-proj[:,0]), 2) + pow((r[:,1]-proj[:,1]), 2) + \
-                   pow((r[:,2]-proj[:,2]), 2))
+    dist = np.sqrt((r[:,0]-proj[:,0])**2 + (r[:,1]-proj[:,1])**2 + \
+                   (r[:,2]-proj[:,2])**2)
     return proj, dist
 
 

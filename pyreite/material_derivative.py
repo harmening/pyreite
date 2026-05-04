@@ -341,7 +341,7 @@ def dAds1(cond, ind, hm):
         dads1[np.ix_(ind['V'][0],ind['V'][0])] = hm[np.ix_(ind['V'][0],
                                                            ind['V'][0])] / \
                                                  cond[0] #N11
-        dads1[np.ix_(ind['p'][0],ind['p'][0])] = - pow(cond[0], -2) * \
+        dads1[np.ix_(ind['p'][0],ind['p'][0])] = - cond[0]**(-2) * \
                                                  hm[np.ix_(ind['p'][0],
                                                            ind['p'][0])] / \
                                                  (1.0/cond[0]) #S11
@@ -349,7 +349,7 @@ def dAds1(cond, ind, hm):
         dads1[np.ix_(ind['V'][0],ind['V'][0])] = hm[np.ix_(ind['V'][0],
                                                            ind['V'][0])] / \
                                                  (cond[0] + cond[1]) #N11
-        dads1[np.ix_(ind['p'][0],ind['p'][0])] = - pow(cond[0], -2) * \
+        dads1[np.ix_(ind['p'][0],ind['p'][0])] = - cond[0]**(-2) * \
                                                  hm[np.ix_(ind['p'][0],
                                                            ind['p'][0])] / \
                                                  (1.0/cond[0] + 1.0/cond[1]) #S11
@@ -366,7 +366,7 @@ def dAds2(cond, ind, hm):
     dads2[np.ix_(ind['V'][0],ind['V'][1])] = - hm[np.ix_(ind['V'][0],
                                                          ind['V'][1])] / \
                                                (-cond[1]) #N12
-    dads2[np.ix_(ind['p'][0],ind['p'][0])] = - pow(cond[1], -2) * \
+    dads2[np.ix_(ind['p'][0],ind['p'][0])] = - cond[1]**(-2) * \
                                                hm[np.ix_(ind['p'][0],
                                                          ind['p'][0])] / \
                                                (1.0/cond[0] + 1.0/cond[1]) #S11
@@ -379,15 +379,15 @@ def dAds2(cond, ind, hm):
         dads2[np.ix_(ind['V'][1],ind['V'][1])] = hm[np.ix_(ind['V'][1],
                                                              ind['V'][1])] \
                                                    / (cond[1] + cond[2]) #N22
-        dads2[np.ix_(ind['p'][1],ind['p'][0])] = pow(cond[1], -2) * \
+        dads2[np.ix_(ind['p'][1],ind['p'][0])] = cond[1]**(-2) * \
                                                    hm[np.ix_(ind['p'][1],
                                                              ind['p'][0])] \
                                                    / (-1/cond[1]) #S21
-        dads2[np.ix_(ind['p'][0],ind['p'][1])] = pow(cond[1], -2) * \
+        dads2[np.ix_(ind['p'][0],ind['p'][1])] = cond[1]**(-2) * \
                                                    hm[np.ix_(ind['p'][0],
                                                              ind['p'][1])] \
                                                    / (-1/cond[1]) #S12
-        dads2[np.ix_(ind['p'][1],ind['p'][1])] = - pow(cond[1], -2) * \
+        dads2[np.ix_(ind['p'][1],ind['p'][1])] = - cond[1]**(-2) * \
                                                    hm[np.ix_(ind['p'][1],
                                                              ind['p'][1])] \
                                                    / (1.0/cond[1] +
@@ -405,7 +405,7 @@ def dAds3(cond, ind, hm):
     dads3[np.ix_(ind['V'][1],ind['V'][2])] = - hm[np.ix_(ind['V'][1],
                                                          ind['V'][2])] / \
                                                (-cond[2]) #N23
-    dads3[np.ix_(ind['p'][1],ind['p'][1])] = - pow(cond[2], -2) * \
+    dads3[np.ix_(ind['p'][1],ind['p'][1])] = - cond[2]**(-2) * \
                                                hm[np.ix_(ind['p'][1],
                                                          ind['p'][1])] / \
                                                (1.0/cond[1] + 1.0/cond[2]) #S22
@@ -417,15 +417,15 @@ def dAds3(cond, ind, hm):
         dads3[np.ix_(ind['V'][2],ind['V'][2])] = hm[np.ix_(ind['V'][2],
                                                              ind['V'][2])] / \
                                                    (cond[2] + cond[3]) #N33
-        dads3[np.ix_(ind['p'][2],ind['p'][1])] = pow(cond[2], -2) * \
+        dads3[np.ix_(ind['p'][2],ind['p'][1])] = cond[2]**(-2) * \
                                                    hm[np.ix_(ind['p'][2],
                                                              ind['p'][1])] \
                                                    / (-1/cond[2]) #S32
-        dads3[np.ix_(ind['p'][1],ind['p'][2])] = pow(cond[2], -2) * \
+        dads3[np.ix_(ind['p'][1],ind['p'][2])] = cond[2]**(-2) * \
                                                    hm[np.ix_(ind['p'][1],
                                                              ind['p'][2])] \
                                                    / (-1/cond[2]) #S23
-        dads3[np.ix_(ind['p'][2],ind['p'][2])] = - pow(cond[2], -2) * \
+        dads3[np.ix_(ind['p'][2],ind['p'][2])] = - cond[2]**(-2) * \
                                                    hm[np.ix_(ind['p'][2],
                                                              ind['p'][2])] / \
                                                    (1.0/cond[2] + 1.0/cond[3])
@@ -443,7 +443,7 @@ def dAds4(cond, ind, hm):
     dads4[np.ix_(ind['V'][2],ind['V'][3])] = - hm[np.ix_(ind['V'][2],
                                                          ind['V'][3])] / \
                                                (-cond[3]) #N34
-    dads4[np.ix_(ind['p'][2],ind['p'][2])] = - pow(cond[3], -2) * \
+    dads4[np.ix_(ind['p'][2],ind['p'][2])] = - cond[3]**(-2) * \
                                                hm[np.ix_(ind['p'][2],
                                                          ind['p'][2])] / \
                                                (1.0/cond[2] + 1.0/cond[3]) #S33
@@ -461,7 +461,7 @@ def dAds4(cond, ind, hm):
         dads4[np.ix_(ind['p'][2],ind['p'][3])] = - hm[np.ix_(ind['p'][2],
                                                               ind['p'][3])] \
                                                    / cond[3] #S34
-        dads4[np.ix_(ind['p'][3],ind['p'][3])] = - pow(cond[3], -2) * \
+        dads4[np.ix_(ind['p'][3],ind['p'][3])] = - cond[3]**(-2) * \
                                                    hm[np.ix_(ind['p'][3],
                                                              ind['p'][3])] / \
                                                    (1.0/cond[3] + 1.0/cond[4])

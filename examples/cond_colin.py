@@ -23,7 +23,7 @@ def add_noise(x):
                                                              std_dev_prop) \
                            for e in x])
     # additive noise 
-    std_dev_add = 5 / pow(10,6) # 5 micro Volt
+    std_dev_add = 5 / 10**6 # 5 micro Volt
     noise_add = np.random.normal(loc=0.0, scale=std_dev_add)
 
     #print(x)
@@ -92,7 +92,7 @@ def main():
     
     # Get voltage difference between exp EIT measurement and our simulation
     dV = loss_residuals(cond, model, V_experiment) 
-    Error=0.5*np.nansum(pow(dV, 2)) # data misfit
+    Error=0.5*np.nansum(dV**2) # data misfit
 
 
 
@@ -152,7 +152,7 @@ def main():
 
         # Get new step data
         dV = loss_residuals(new_cond, model, V_experiment) 
-        Error=0.5*np.nansum(pow(dV, 2))
+        Error=0.5*np.nansum(dV**2)
 
         if Error >= old_Error:
             break

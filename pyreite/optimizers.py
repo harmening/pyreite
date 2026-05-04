@@ -24,7 +24,7 @@ def loss_residuals(cond, model, V_experiment, fixed=[], scale=False, ND2V=None,
     if scale:
         V_experiment = V_experiment * np.max(np.abs(V))
     dV = -(V_experiment-V)
-    Error=0.5*np.nansum(pow(dV, 2));
+    Error=0.5*np.nansum(dV**2);
     printgreen("Error: %f\n" % Error)
     return dV#, Error
 
@@ -56,13 +56,13 @@ def jac_hess(cond, model, V_experiment, fixed=[], ND2V=None, protocol=None):
 
 
 def tikhonov(A, b, lamb, Lpr0):
-	Lpr = pow(lamb,2) * Lpr0;
+	Lpr = lamb**2 * Lpr0;
 	# Moore-Penrose generalized inverse with Tikhonov regularization
 	x = np.dot(np.linalg.inv(A.conj().T.dot(A) + Lpr), A.conj().T.dot(b))
 	return x
 
 def levenberg_marquardt_hessian(A, dA, b, lamb, Lpr0):
-    Lpr = pow(lamb,2) * Lpr0;
+    Lpr = lamb**2 * Lpr0;
     # Moore-Penrose generalized inverse with Tikhonov regularization + Hessian
     Ainv = np.linalg.pinv(A.conj().T.dot(A) + Lpr)
     theta1 = np.dot(Ainv, A.conj().T.dot(b))
@@ -76,7 +76,7 @@ def is_posdef(M):
     return True if (w > 0).all() else False
 
 def levenberg_marquardt_hessiancheck(A, dA, b, lamb, Lpr0):
-    Lpr = pow(lamb,2) * Lpr0;
+    Lpr = lamb**2 * Lpr0;
     # Moore-Penrose generalized inverse with Tikhonov regularization + Hessian
     Ainv = np.linalg.pinv(A.conj().T.dot(A) + Lpr)
     theta1 = np.dot(Ainv, A.conj().T.dot(b))
@@ -192,7 +192,7 @@ def build_Lpr0_combined(J, sigma_x, prev_diag=None, floor=1e-6):
 
 
 def levenberg_marquardt_hessian_noser(A, dA, b, lamb, P=None, Q=None):
-    tik_reg_param = pow(lamb,2)
+    tik_reg_param = lamb**2
     if not (isinstance(P, np.ndarray) or isinstance(P, list)):
         # NOSER (weigths Tikhonov regularization by jacobian sensitivity)
         P = tik_reg_param*np.diag(np.diag(A.conj().T.dot(A)))

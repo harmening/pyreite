@@ -4,7 +4,7 @@ import os, itertools, tempfile, time
 from random import random
 from shutil import copyfile
 import numpy as np, openmeeg as om
-from pyreite.data_io import *
+from pyreite.data_io import write_cond_file, write_elec_file, write_geom_file
 from pyreite.geometry import create_geometry
 from collections import OrderedDict
 
@@ -19,7 +19,6 @@ class OpenMEEGHead(object):
         tmp = tempfile.mkdtemp()
         if isinstance(geometry, dict):
             geom_out2inside = OrderedDict([(tissue, bnd) for tissue, bnd in
-            #                               geometry.items()])
                                           reversed(geometry.items())])
             fn_geom = os.path.join(tmp, str(random())+'.geom')
             write_geom_file(geom_out2inside, fn_geom)
@@ -135,11 +134,11 @@ class OpenMEEGHead(object):
     def V(self):
         if not isinstance(self._V, np.ndarray):
             self._V, _ = self._EIT_data(self.gain, self.sens, \
-                                        freqs=[pow(10,7)], Iamp=[133.0e-3], \
+                                        freqs=[10**7], Iamp=[133.0e-3], \
                                         ref='no_ref', excluded_chan=[], \
                                         nonans=True)
         return self._V
-    def Vsetter(self, freqs=[pow(10,7)], Iamp=[133.0e-3], ref='no_ref', \
+    def Vsetter(self, freqs=[10**7], Iamp=[133.0e-3], ref='no_ref', \
           excluded_chan=[], nonans=True):
         if not isinstance(self._V, np.ndarray):
             self._V, _ = self._EIT_data(self.gain, self.sens, freqs=freqs, \
@@ -148,7 +147,7 @@ class OpenMEEGHead(object):
                                         nonans=nonans)
         return self._V
 
-    def _EIT_data(self, G_eit, sens, freqs=[pow(10,7)], Iamp=[133.0e-3], \
+    def _EIT_data(self, G_eit, sens, freqs=[10**7], Iamp=[133.0e-3], \
                   ref='no_ref', excluded_chan=[], nonans=True):
         n_elec = sens.getNumberOfSensors()
         sel_chan = range(1, n_elec+1)
@@ -203,7 +202,6 @@ class OpenMEEGHead(object):
         self.cond = conductivity
         geom_out2inside = OrderedDict([(tissue, bnd) for tissue, bnd in
                                        self.geometry.items()])
-        #                               reversed(self.geometry.items())])
         tmp = tempfile.mkdtemp()
         fn_geom = os.path.join(tmp, str(random())+'.geom')
         fn_cond = os.path.join(tmp, str(random())+'.cond')
@@ -229,48 +227,10 @@ class OpenMEEGHead(object):
                 or isinstance(self.sigma, dict):
             self.sigma = conductivity
 
-    """
-    def neumann_old(self):
-        # rename to state variable u
-        return self.Ainv.dot(self.eitsm)
-
-    def neumann(self, freqs=[pow(10,7)], Iamp=[133.0e-3], ref='CAR', \
-          excluded_chan=[], nonans=False):
-        if not isinstance(self._V, np.ndarray):
-            all_gain = np.dot(self.Ainv, self.eitsm)
-            self._V, _ = self._EIT_data(all_gain, self.sens, freqs=freqs, \
-                                        Iamp=Iamp, ref=ref, \
-                                        excluded_chan=excluded_chan, \
-                                        nonans=False)
-        return self._V
-    """
-
     def dirichlet(self, neumann_data, exp_V_sens):
-        # rename to state variable p
-        #gain_all = self.neumann()
         gain_all = self.Ainv.dot(self.eitsm)
-        # apply protocol
         u_minus_f = neumann_data - exp_V_sens
-        #ret = u_minus_f.dot(gain_all.T)
         ret = nandot(u_minus_f, gain_all.T)
-        # EEG RHS should be implemented here -> missing in openmeeg??
-        """
-        # Trying to get dirichlet data from approximating electrodes as dipoles
-        # NOT WORKING!
-        mesh = self.geom.meshes()[0]
-        om_pos = {i.getindex(): [i(0), i(1), i(2)] for i in mesh.vertices()}
-        om_pos = np.array([p for i, p in sorted(om_pos.items())])
-        om_tris = np.array([[t(0).getindex(), t(1).getindex(), t(2).getindex()]
-                             for t in mesh.iterator()])
-        nrms = get_normals(om_pos, om_tris)
-        dips = np.concatenate((om_pos, nrms), axis=1)
-        self.add_dipoles(dips)
-        diri = self.V_dip('eit')
-        pot_at_elecs_from_cur_inj = om2np(self.h2em).dot(self.neumann())
-        return diri.dot(pot_at_elecs_from_cur_inj)
-        """
-        # as workaround we use the neumann data, too (-> same unique solution)
-        #return om2np(self.Ainv).dot(om2np(self.eitsm))
         return ret
 
 

@@ -19,7 +19,7 @@ def small_cond_pertubation(head, mesh_nb):
     cond = head.cond
     # small pertubation
     e = {shell: 0.0 for shell in cond.keys()}
-    eps = np.sqrt(pow(10, -12))
+    eps = np.sqrt(10**(-12))
     e['bnd%d' % mesh_nb] = eps
     new_cond = {shell: cond[shell]+e[shell] for shell in head.mesh_names}
     #head_eps = OpenMEEGHead(new_cond, geom, elecs)
@@ -72,7 +72,7 @@ def test_second_derivatives():
                                                head.h2em, head.eitsm, head.ind)
     d2Vdsidsj = second_derivatives(head, elecs, head.A, head.Ainv, head.h2em,
                                    head.eitsm, head.ind, dEIT, dA1dsi, dadsi)
-    assert len(d2Vdsidsj) == pow(num_meshes, 2)
+    assert len(d2Vdsidsj) == num_meshes**2
 
 """
 def test_jacobian():
@@ -87,7 +87,7 @@ def test_jacobian():
     orig_cond = [head.cond[shell] for shell in head.mesh_names] # inside out
     J = jacobian(orig_cond, head).T
     ND2V = EIT_protocol(elecs.shape[0], protocol='all_realistic')
-    eps = np.sqrt(pow(10, -12))
+    eps = np.sqrt(10**(-12))
     f_x = head.V[0]#.flatten()[ND2V]
     fin_diff = []
     for i, mesh_name in enumerate(cond.keys()):
@@ -201,8 +201,7 @@ def test_dAds1ds1():
     da2ds1ds1_from_hm = np.zeros((head.A.shape), dtype='float64')
     S11 = head.A[np.ix_(ind['p'][0], ind['p'][0])] / (1/cond_list[0] + \
                                                       1/cond_list[1])
-    da2ds1ds1_from_hm[np.ix_(ind['p'][0],ind['p'][0])] = 2 * pow(cond_list[0],\
-                                                                 -3) * S11
+    da2ds1ds1_from_hm[np.ix_(ind['p'][0],ind['p'][0])] = 2 * cond_list[0]**(-3) * S11
 
     assert_array_almost_equal(da2ds1ds1, da2ds1ds1_from_hm)
 
@@ -217,18 +216,14 @@ def test_dAds2ds2():
     da2ds2ds2_from_hm = np.zeros((head.A.shape), dtype='float64')
     S11 = head.A[np.ix_(ind['p'][0], ind['p'][0])] / (1/cond_list[0] + \
                                                       1/cond_list[1])
-    da2ds2ds2_from_hm[np.ix_(ind['p'][0],ind['p'][0])] = 2 * pow(cond_list[1],\
-                                                                 -3) * S11
+    da2ds2ds2_from_hm[np.ix_(ind['p'][0],ind['p'][0])] = 2 * cond_list[1]**(-3) * S11
     S12 = head.A[np.ix_(ind['p'][0], ind['p'][1])] * (-cond_list[1])
-    da2ds2ds2_from_hm[np.ix_(ind['p'][0],ind['p'][1])] = -2 * pow(cond_list[1],\
-                                                                  -3) * S12
+    da2ds2ds2_from_hm[np.ix_(ind['p'][0],ind['p'][1])] = -2 * cond_list[1]**(-3) * S12
     S21 = head.A[np.ix_(ind['p'][1], ind['p'][0])] * (-cond_list[1])
-    da2ds2ds2_from_hm[np.ix_(ind['p'][1],ind['p'][0])] = -2 * pow(cond_list[1],\
-                                                                  -3) * S21
+    da2ds2ds2_from_hm[np.ix_(ind['p'][1],ind['p'][0])] = -2 * cond_list[1]**(-3) * S21
     S22 = head.A[np.ix_(ind['p'][1], ind['p'][1])] / (1/cond_list[1] + \
                                                       1/cond_list[2])
-    da2ds2ds2_from_hm[np.ix_(ind['p'][1],ind['p'][1])] = 2 * pow(cond_list[1],\
-                                                                 -3) * S22
+    da2ds2ds2_from_hm[np.ix_(ind['p'][1],ind['p'][1])] = 2 * cond_list[1]**(-3) * S22
 
     assert_array_almost_equal(da2ds2ds2, da2ds2ds2_from_hm)
 
@@ -243,18 +238,14 @@ def test_dAds3ds3():
     da2ds3ds3_from_hm = np.zeros((head.A.shape), dtype='float64')
     S22 = head.A[np.ix_(ind['p'][1], ind['p'][1])] / (1/cond_list[1] + \
                                                       1/cond_list[2])
-    da2ds3ds3_from_hm[np.ix_(ind['p'][1],ind['p'][1])] = 2 * pow(cond_list[2],\
-                                                                 -3) * S22
+    da2ds3ds3_from_hm[np.ix_(ind['p'][1],ind['p'][1])] = 2 * cond_list[2]**(-3) * S22
     S23 = head.A[np.ix_(ind['p'][1], ind['p'][2])] * (-cond_list[2])
-    da2ds3ds3_from_hm[np.ix_(ind['p'][1],ind['p'][2])] = -2 * pow(cond_list[2],\
-                                                                  -3) * S23
+    da2ds3ds3_from_hm[np.ix_(ind['p'][1],ind['p'][2])] = -2 * cond_list[2]**(-3) * S23
     S32 = head.A[np.ix_(ind['p'][2], ind['p'][1])] * (-cond_list[2])
-    da2ds3ds3_from_hm[np.ix_(ind['p'][2],ind['p'][1])] = -2 * pow(cond_list[2],\
-                                                                  -3) * S32
+    da2ds3ds3_from_hm[np.ix_(ind['p'][2],ind['p'][1])] = -2 * cond_list[2]**(-3) * S32
     S33 = head.A[np.ix_(ind['p'][2], ind['p'][2])] / (1/cond_list[2] + \
                                                       1/cond_list[3])
-    da2ds3ds3_from_hm[np.ix_(ind['p'][2],ind['p'][2])] = 2 * pow(cond_list[2],\
-                                                                 -3) * S33
+    da2ds3ds3_from_hm[np.ix_(ind['p'][2],ind['p'][2])] = 2 * cond_list[2]**(-3) * S33
 
     assert_array_almost_equal(da2ds3ds3, da2ds3ds3_from_hm)
 
@@ -269,8 +260,7 @@ def test_dAds4ds4():
     da2ds4ds4_from_hm = np.zeros((head.A.shape), dtype='float64')
     S33 = head.A[np.ix_(ind['p'][2], ind['p'][2])] / (1/cond_list[2] + \
                                                       1/cond_list[3])
-    da2ds4ds4_from_hm[np.ix_(ind['p'][2],ind['p'][2])] = 2 * pow(cond_list[3],\
-                                                                 -3) * S33
+    da2ds4ds4_from_hm[np.ix_(ind['p'][2],ind['p'][2])] = 2 * cond_list[3]**(-3) * S33
 
     assert_array_almost_equal(da2ds4ds4, da2ds4ds4_from_hm)
 

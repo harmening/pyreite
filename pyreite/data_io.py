@@ -172,9 +172,9 @@ def surface_area(vertices, faces):
     x3= vertices[faces[:,2],0]
     y3= vertices[faces[:,2],1]
     z3= vertices[faces[:,2],2]
-    area = np.sqrt(pow((y2-y1)*(z3-z1)-(y3-y1)*(z2-z1), 2) +
-                   pow((z2-z1)*(x3-x1)-(z3-z1)*(x2-x1), 2) +
-                   pow((x2-x1)*(y3-y1)-(x3-x1)*(y2-y1), 2))
+    area = np.sqrt(((y2-y1)*(z3-z1)-(y3-y1)*(z2-z1))**2 +
+                   ((z2-z1)*(x3-x1)-(z3-z1)*(x2-x1))**2 +
+                   ((x2-x1)*(y3-y1)-(x3-x1)*(y2-y1))**2)
     return sum(area)
 
 def verts_normals_orientation(vertices, faces, normals, normalsIn):
@@ -191,7 +191,7 @@ def verts_normals_orientation(vertices, faces, normals, normalsIn):
         normals_f = normals_for_faces(vertices, faces)
         normals = vertex_normals(faces, normals_f)
     for i in range(normals.shape[0]):
-        norm_i = np.sqrt(np.sum([pow(normals[i,ii], 2) for ii in range(3)]))
+        norm_i = np.sqrt(np.sum([normals[i,ii]**2 for ii in range(3)]))
         normals[i,:] /= norm_i
     return normals
 
@@ -207,7 +207,7 @@ def vertex_normals(faces, face_normals):
     for i in range(faces.max()+1):
         tris = np.argwhere(faces == i)[:,0]
         normals[i,:] += np.sum(face_normals[np.ix_(tris)], axis=0)
-        norm_i = np.sqrt(np.sum([pow(normals[i,ii], 2) for ii in range(3)]))
+        norm_i = np.sqrt(np.sum([normals[i,ii]**2 for ii in range(3)]))
         normals[i,:] /= norm_i
     return normals
 

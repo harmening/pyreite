@@ -36,7 +36,7 @@ def add_noise(x):
                                                              std_dev_prop) \
                            for e in x])
     # additive noise 
-    std_dev_add = 5 / pow(10,6) # 5 micro Volt
+    std_dev_add = 5 / 10**6 # 5 micro Volt
     noise_add = np.random.normal(loc=0.0, scale=std_dev_add)
 
     #print(x)
