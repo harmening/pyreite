@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from numpy.testing import assert_array_almost_equal, assert_array_equal
 from tests.data_for_testing import *
 from pyreite.OpenMEEGHead import OpenMEEGHead, om2np
@@ -73,74 +74,6 @@ def test_second_derivatives():
     d2Vdsidsj = second_derivatives(head, elecs, head.A, head.Ainv, head.h2em,
                                    head.eitsm, head.ind, dEIT, dA1dsi, dadsi)
     assert len(d2Vdsidsj) == num_meshes**2
-
-"""
-def test_jacobian():
-    #check_grad - Check the supplied derivative using finite differences.
-    # -> not working due to ill-posedness???
-    bnds = simple_test_shapes(num_nested_meshes=4)[-2:]
-    mesh_names = ['bnd%d' % i for i in range(len(bnds))]
-    geom = OrderedDict([(shell, bnd) for shell, bnd in zip(mesh_names, bnds)])
-    cond = OrderedDict([(shell, 1+np.random.rand()) for shell in mesh_names])
-    elecs = find_center_of_triangle(bnds[-1][0], bnds[-1][1])[::800,:] #7 elecs
-    head = OpenMEEGHead(cond, geom, elecs)
-    orig_cond = [head.cond[shell] for shell in head.mesh_names] # inside out
-    J = jacobian(orig_cond, head).T
-    ND2V = EIT_protocol(elecs.shape[0], protocol='all_realistic')
-    eps = np.sqrt(10**(-12))
-    f_x = head.V[0]#.flatten()[ND2V]
-    fin_diff = []
-    for i, mesh_name in enumerate(cond.keys()):
-        e = {shell: 0.0 for shell in cond.keys()}
-        e[mesh_name] = eps
-        new_cond = OrderedDict([(shell, cond[shell]+e[shell]) for shell in \
-                                head.mesh_names])
-        head_plus = OpenMEEGHead(new_cond, geom, elecs)
-        #head.set_cond(new_cond)
-        #act_cond = [head_plus.cond[shell] for shell in head_plus.mesh_names] 
-        f_x_plus_eps = head_plus.V[0]#.flatten()[ND2V]
-
-        new_cond = OrderedDict([(shell, cond[shell]-e[shell]) for shell in \
-                                head.mesh_names])
-        head_minus = OpenMEEGHead(new_cond, geom, elecs)
-        act_cond = [head_minus.cond[shell] for shell in head_minus.mesh_names]
-        f_x_minus_eps = head_minus.V[0]#.flatten()[ND2V]
-
-        diff = (f_x_plus_eps - f_x_minus_eps)/(2*eps)
-        fin_diff.append(diff.flatten()[ND2V])
-        #head.set_cond(cond)
-        
-        ##dV / |V|  approx  J_condition_nb * J-J_perturbed / |J| +  
-                                                  sigma - (sigma+eps) / |sigma|
-        #new_cond_values = [head_minus.cond[shell] for shell in \
-                                                        head_minus.mesh_names] 
-        #J_eps = jacobian(new_cond_values, head_minus, None).T
-        #V_diff = deltaV(act_cond, head_minus, f_x)
-        #left = V_diff / np.linalg.norm(V_diff[i])
-        #right = (J[i]-J_eps)/np.linalg.norm(J[i]) + \
-        #        (np.array(orig_cond[i])-np.array(new_cond_values[i])) / \
-                                                np.linalg.norm(orig_cond[i])
-        #print(left)
-        #print(np.linalg.norm(J[i])*right)
-        #assert_array_almost_equal(left, np.linalg.norm(J[i])*right)
-        del head_plus
-        del head_minus
-
-    fin_diff = np.array(fin_diff)
-    assert np.sum(fin_diff) != 0.0
-"""
-
-"""
-# Testing the perturbation with taking the condition number into account
-dads1_eps = dAds1(new_cond_list, head_eps.ind, om2np(head_eps.A))
-left = om2np(f_x - f_x_eps) / np.linalg.norm(om2np(head.A))
-right = (dads1 - dads1_eps) / np.linalg.norm(dads1) + \
-        (cond_list[0]-new_cond_list[0]) / np.linalg.norm(cond_list[0])
-condition_nb = np.linalg.cond(dads1)
-if abs(condition_nb) == np.inf:
-    condition_nb = 1
-assert_array_almost_equal(left, condition_nb*right)
-"""
 
 def test_dAds1():
     bnds = simple_test_shapes(num_nested_meshes=5)[-2:]
@@ -268,10 +201,54 @@ def test_dAds4ds4():
 def test_jacobian():
     bnds = simple_test_shapes(num_nested_meshes=4)
     head = head_from_bnds(bnds)
-    cond_list = [head.cond[shell] for shell in head.mesh_names] 
+    cond_list = [head.cond[shell] for shell in head.mesh_names]
     j = jacobian(cond_list, head, return_model=False)
     assert len(j.shape) == 2
     assert j.shape[1] == 4
+
+
+@pytest.mark.parametrize("num_meshes", [2, 3])
+def test_jacobian_finite_difference(num_meshes):
+    """Validate analytic jacobian against central-difference numerical jacobian.
+
+    Catches sign flips, tissue-index drift, and wrong-branch selection in the
+    per-mesh-count code paths of `material_derivative.jacobian`.
+    """
+    bnds = simple_test_shapes(num_nested_meshes=num_meshes)
+    mesh_names = ['bnd%d' % i for i in range(num_meshes)]
+    geom = OrderedDict([(s, b) for s, b in zip(mesh_names, bnds)])
+    cond = OrderedDict([(s, 1 + np.random.rand()) for s in mesh_names])
+    # Use full face-center grid on outermost shell so EIT_protocol returns
+    # a non-empty measurement set (head_from_bnds's [::800] slice gives
+    # only 1 electrode for basic icosahedrons -> 0 measurements).
+    elecs = find_center_of_triangle(bnds[-1][0], bnds[-1][1])[::4, :]
+    head = OpenMEEGHead(cond, geom, elecs)
+
+    n_elec = head.n_electrodes
+    ND2V = EIT_protocol(num_elec=n_elec, n_freq=1, protocol='all_realistic')
+    assert sum(ND2V) > 0, "FD test requires non-empty measurement protocol"
+
+    # Analytic jacobian: shape (n_meas, num_meshes), columns inside-out.
+    J_analytic = jacobian(cond, head, ND2V=ND2V)
+
+    # Numerical jacobian via central differences. Fresh OpenMEEGHead per
+    # perturbation to avoid any reliance on set_cond cache invalidation.
+    eps = 1e-4
+    J_fd = np.zeros_like(J_analytic)
+    tissues_inside_out = list(reversed(head.mesh_names))
+    for i, tissue in enumerate(tissues_inside_out):
+        cond_plus = OrderedDict((t, cond[t] + (eps if t == tissue else 0.0))
+                                for t in cond)
+        cond_minus = OrderedDict((t, cond[t] - (eps if t == tissue else 0.0))
+                                 for t in cond)
+        head_plus = OpenMEEGHead(cond_plus, geom, elecs)
+        head_minus = OpenMEEGHead(cond_minus, geom, elecs)
+        V_plus = head_plus.V.flatten()[ND2V]
+        V_minus = head_minus.V.flatten()[ND2V]
+        J_fd[:, i] = (V_plus - V_minus) / (2 * eps)
+
+    # All columns must agree to near-machine precision.
+    np.testing.assert_allclose(J_analytic, J_fd, rtol=1e-4, atol=1e-9)
 
 def test_hessian():
     bnds = simple_test_shapes(num_nested_meshes=4)

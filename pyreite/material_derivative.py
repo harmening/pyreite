@@ -18,7 +18,11 @@ def first_derivatives(head, electrodes, hm, hminv, h2em, eitsm, ind):
     dEIT = np.zeros((eitsm.shape))
     #dEIT[ind['p'][-2],:] = -pow(cond[-1], -1) * eitsm[ind['p'][-2],:] # S23
     #dEIT[ind['p'][-1],:] = -pow(cond[-1], -2) * eitsm[ind['p'][-1],:] # S23
-    dEIT[ind['p'][-1],:] = -eitsm[ind['p'][-1],:] / cond[-1] # S23
+    # dEIT lives on the outermost non-empty p block (ind['p'][-1] is forced []
+    # by _get_indices_inside_out for the outermost mesh). Skip for the 1-mesh
+    # case where no internal interface exists.
+    if num_meshes >= 2:
+        dEIT[ind['p'][-2], :] = -eitsm[ind['p'][-2], :] / cond[-1]
 
     # can be precomputed
     dCds = hminv.dot(dEIT)
