@@ -7,28 +7,10 @@ from pyreite.EIThelpers import EIT_protocol
 from pyreite.optimizers import loss_residuals, jac, hess, jac_hess, \
                                tikhonov, levenberg_marquardt_hessian, \
                                levenberg_marquardt_hessiancheck
+from pyreite.colors import printred, printyellow, printgreen, printblue
 
 BASEDIR = pth.dirname(pth.dirname(pth.realpath(__file__)))
 DATADIR = pth.join(BASEDIR, 'tests', 'test_data')
-
-class bcolors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
-def printred(string):
-	print(f"{bcolors.FAIL}%s{bcolors.ENDC}" % string)
-def printyellow(string):
-	print(f"{bcolors.WARNING}%s{bcolors.ENDC}" % string)
-def printgreen(string):
-	print(f"{bcolors.OKGREEN}%s{bcolors.ENDC}" % string)
-def printblue(string):
-	print(f"{bcolors.OKBLUE}%s{bcolors.ENDC}" % string)
 
 
 def add_noise(x):

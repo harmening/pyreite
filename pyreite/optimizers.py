@@ -1,28 +1,9 @@
 import numpy as np
 from collections import OrderedDict
 import pyreite
+from pyreite.colors import bcolors, printred, printyellow, printgreen, printblue
 from pyreite.EIThelpers import EIT_protocol, apply_protocol
 from pyreite.material_derivative import jacobian, hessian
-
-
-class bcolors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
-def printred(string):
-	print(f"{bcolors.FAIL}%s{bcolors.ENDC}" % string)
-def printyellow(string):
-	print(f"{bcolors.WARNING}%s{bcolors.ENDC}" % string)
-def printgreen(string):
-	print(f"{bcolors.OKGREEN}%s{bcolors.ENDC}" % string)
-def printblue(string):
-	print(f"{bcolors.OKBLUE}%s{bcolors.ENDC}" % string)
 
 
 

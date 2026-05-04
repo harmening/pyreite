@@ -19,10 +19,18 @@ def get_version(rel_path):
 setup(name='pyreite',
       version=get_version("pyreite/__init__.py"),
       description='Pythonic, Yet Rudimentary, EIT expert',
+      long_description=read("README.md"),
+      long_description_content_type='text/markdown',
       url='https://github.com/harmening/pyreite',
       author='Nils Harmening',
       author_email='nils.harmening@tu-berlin.de',
       license='GNU General Public License v3.0',
       #packages=['pyreite'],
       packages=find_packages(include=['pyreite', 'pyreite.*']),
+      python_requires='>=3.7',
+      install_requires=[
+          'numpy>=1.21.6',
+          'h5py>=3.8.0',
+          'scipy>=1.7.3',
+      ],
       zip_safe=False)
