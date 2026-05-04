@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-import tempfile, numpy as np
+import numpy as np
 import openmeeg as om
-from pyreite.data_io import write_tri
 
 
 def create_geometry(geom_file, cond_file, elec_file):
@@ -10,39 +9,6 @@ def create_geometry(geom_file, cond_file, elec_file):
     #assert geometry.selfCheck()
     sensors = om.Sensors(elec_file, geometry)
     return geometry, sensors
-
-def make_geometry(geom_out2inside, cond):
-    dirpath = tempfile.mkdtemp()
-    def python_mesh(name, path):
-        mesh = om.Mesh(path)
-        mesh_vertices = mesh.geometry().vertices()
-        vertices = np.array([vertex.array() for vertex in mesh_vertices])
-        mesh_triangles = mesh.triangles()
-        triangles = np.array([mesh.triangle(triangle).array() for triangle in
-                              mesh_triangles])
-        return vertices, triangles
-
-    meshes = dict()
-    # om works inside out
-    for tissue, bnd in reversed(geom_out2inside.items()):
-        write_tri(op.join(dirpath, tissue+'.tri'), bnd[0], bnd[1])
-        meshes[tissue] = python_mesh(tissue, op.join(dirpath, tissue+'.tri'))
-
-    interfaces = {'interface'+str(i+1): [(tissue, om.OrientedMesh.Normal)] \
-                  for i, tissue in reversed(geom_out2inside.keys())}
-
-    domains = {tissue: ([('interface'+str(i+1),  om.SimpleDomain.Inside),
-                         ('interface'+str(i), om.SimpleDomain.Outside)],
-                        cond[t]) for i, t in reversed(geom_out2inside.keys())}
-    domains['air'] = ([('interface'+str(len(interfaces)),
-                        om.SimpleDomain.Outside)], 0.0)
-    innermost = [tiss for tiss in geom_out2inside.keys()][-1]
-    domains[innermost] = ([('interface1', om.SimpleDomain.Inside)],
-                          cond[innermost])
-
-    g1 = om.make_geometry(meshes, interfaces, domains)
-    return g1
-
 
 def mesh2bnd(mesh):
     min_idx = min([vert.index() for vert in mesh.vertices()])

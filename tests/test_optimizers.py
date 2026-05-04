@@ -1,5 +1,6 @@
 import numpy as np
-from numpy.testing import assert_array_almost_equal, assert_array_equal
+import pytest
+from numpy.testing import assert_allclose, assert_array_almost_equal, assert_array_equal
 from tests.data_for_testing import *
 from pyreite.OpenMEEGHead import OpenMEEGHead, om2np
 from pyreite.optimizers import *
@@ -106,4 +107,84 @@ def test_levenberg_marquardt_hessian():
     lma = tikhonov(A, b, lamb, Lpr0)
     assert_array_almost_equal(lma, diff)
     assert_array_almost_equal(lma, diff2)
+
+
+# ---- pure-numeric tests for the regularization / damping helpers ----
+
+def test_tikhonov_zero_lambda_matches_lstsq():
+    A = np.random.randn(10, 3)
+    b = np.random.randn(10)
+    Lpr0 = np.eye(3)
+    x_tik = tikhonov(A, b, lamb=0.0, Lpr0=Lpr0)
+    x_lstsq, *_ = np.linalg.lstsq(A, b, rcond=None)
+    assert_allclose(x_tik, x_lstsq, atol=1e-10)
+
+def test_tikhonov_large_lambda_shrinks_to_zero():
+    A = np.random.randn(10, 3)
+    b = np.random.randn(10)
+    Lpr0 = np.eye(3)
+    x = tikhonov(A, b, lamb=1e6, Lpr0=Lpr0)
+    assert np.linalg.norm(x) < 1e-3
+
+def test_levenberg_marquardt_prior_centered_at_mu_equals_tikhonov():
+    """When x == mu and dA == 0, prior centering and Hessian terms vanish."""
+    M, P = 8, 3
+    A = np.random.randn(M, P)
+    b = np.random.randn(M)
+    dA = np.zeros((P, P, M))  # per-measurement Hessian; all-zero -> no 2nd-order
+    x = np.random.randn(P)
+    mu = x.copy()
+    Lpr0 = np.eye(P)
+    step = levenberg_marquardt_hessiancheck_prior_centered(
+        A, dA, b, lamb=0.1, Lpr0=Lpr0, x=x, mu=mu
+    )
+    expected = tikhonov(A, b, lamb=0.1, Lpr0=Lpr0)
+    assert_allclose(step, expected, atol=1e-10)
+
+def test_levenberg_marquardt_prior_centered_accepts_vector_Lpr0():
+    A = np.random.randn(8, 3)
+    b = np.random.randn(8)
+    dA = np.zeros((3, 3, 8))
+    x = np.zeros(3)
+    mu = np.zeros(3)
+    step_vec = levenberg_marquardt_hessiancheck_prior_centered(
+        A, dA, b, 0.1, np.array([1.0, 1.0, 1.0]), x, mu
+    )
+    step_mat = levenberg_marquardt_hessiancheck_prior_centered(
+        A, dA, b, 0.1, np.eye(3), x, mu
+    )
+    assert_allclose(step_vec, step_mat)
+
+def test_levenberg_marquardt_noser_shape():
+    A = np.random.randn(10, 4)
+    dA = np.zeros((4, 4, 10))   # per-measurement Hessian, shape (P, P, M)
+    b = np.random.randn(10)
+    out = levenberg_marquardt_hessian_noser(A, dA, b, lamb=0.1)
+    assert out.shape == (4,)
+
+def test_build_Lpr0_from_J_matches_formula():
+    J = np.random.randn(10, 3)
+    Lpr0, diagJ = build_Lpr0_from_J(J)
+    expected_diagJ = np.maximum(np.einsum("ij,ij->j", J, J), 1e-12)
+    assert_allclose(diagJ, expected_diagJ)
+    assert_allclose(Lpr0, 1.0 / np.sqrt(diagJ))
+
+def test_build_Lpr0_from_J_floor_protects_zero_J():
+    J = np.zeros((10, 3))
+    _, diagJ = build_Lpr0_from_J(J, floor=1e-3)
+    assert_allclose(diagJ, np.full(3, (1e-3) ** 2))
+
+def test_build_Lpr0_from_J_max_with_prev_diag():
+    J = np.ones((5, 3))
+    prev_diag = np.array([100.0, 0.0, 1.0])
+    _, diagJ = build_Lpr0_from_J(J, prev_diag=prev_diag)
+    assert_allclose(diagJ, np.array([100.0, 5.0, 5.0]))
+
+def test_build_Lpr0_combined_matches_formula():
+    J = np.random.randn(8, 2)
+    sigma_x = np.array([0.1, 0.5])
+    Lambda_total, diagJ = build_Lpr0_combined(J, sigma_x)
+    expected_sens = 1.0 / np.maximum(np.einsum("ij,ij->j", J, J), 1e-12)
+    expected_prior = 1.0 / sigma_x ** 2
+    assert_allclose(Lambda_total, expected_sens + expected_prior)
 
