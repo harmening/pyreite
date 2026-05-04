@@ -1,4 +1,4 @@
-import os, pytest
+import os, pytest, tempfile
 import numpy as np
 import openmeeg as om
 import random
@@ -10,28 +10,27 @@ from collections import OrderedDict
 
 
 def test_create_geometry():
-    tmp ='tmp_tri%d' 
     num = random.randint(2, 6)
     bnds = simple_test_shapes(num_nested_meshes=num)
-    cond = {}
-    geom = OrderedDict()
-    for i, bnd in enumerate(bnds):
-        geom[tmp % (i+1)] = bnd
-        cond[tmp % (i+1)] = random.random()
 
-    cond_file, geom_file, elec_file = './tmp_test.cond', './tmp_test.geom', \
-                                      './tmp_test.elec'
-    write_cond_file(cond, cond_file)
-    write_geom_file(geom, geom_file)
-    elecs = find_center_of_triangle(bnds[-1][0], bnds[-1][1])
-    elecs = elecs[::2,:]
-    write_elec_file(elecs, elec_file)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp = os.path.join(tmpdir, 'tmp_tri%d')
+        cond = {}
+        geom = OrderedDict()
+        for i, bnd in enumerate(bnds):
+            geom[tmp % (i+1)] = bnd
+            cond[tmp % (i+1)] = random.random()
 
-    geometry, sensors = create_geometry(geom_file, cond_file, elec_file)
-    for i in range(1, len(bnds)+1):
-        os.remove(tmp % i + '.tri')
-    for filename in [cond_file, geom_file, elec_file]:
-        os.remove(filename)
+        cond_file = os.path.join(tmpdir, 'tmp_test.cond')
+        geom_file = os.path.join(tmpdir, 'tmp_test.geom')
+        elec_file = os.path.join(tmpdir, 'tmp_test.elec')
+        write_cond_file(cond, cond_file)
+        write_geom_file(geom, geom_file)
+        elecs = find_center_of_triangle(bnds[-1][0], bnds[-1][1])
+        elecs = elecs[::2,:]
+        write_elec_file(elecs, elec_file)
+
+        geometry, sensors = create_geometry(geom_file, cond_file, elec_file)
     n_elecs, dim = elecs.shape
     assert sensors.getNumberOfSensors() == n_elecs
     assert_array_almost_equal(sensors.getPositions().array(), elecs)
@@ -60,15 +59,17 @@ def test_create_geometry():
 
 def test_mesh2bnd():
     bnd = simple_test_shapes(num_nested_meshes=1)[0]
-    geom = {'tmp_tri1': bnd}
-    cond = {'tmp_tri1': random.random()}
-    cond_file, geom_file = './tmp_test.cond', './tmp_test.geom'
-    write_cond_file(cond, cond_file)
-    write_geom_file(geom, geom_file)
-    geometry = om.Geometry(geom_file, cond_file) 
-    os.remove('tmp_tri1.tri')
-    mesh = geometry.mesh("1")
-    new_pos, new_tri = mesh2bnd(mesh)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        key = os.path.join(tmpdir, 'tmp_tri1')
+        geom = {key: bnd}
+        cond = {key: random.random()}
+        cond_file = os.path.join(tmpdir, 'tmp_test.cond')
+        geom_file = os.path.join(tmpdir, 'tmp_test.geom')
+        write_cond_file(cond, cond_file)
+        write_geom_file(geom, geom_file)
+        geometry = om.Geometry(geom_file, cond_file)
+        mesh = geometry.mesh("1")
+        new_pos, new_tri = mesh2bnd(mesh)
     pos, tri = bnd
     assert_array_equal(new_pos, pos)
     assert_array_equal(new_tri, tri)

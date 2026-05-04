@@ -207,7 +207,7 @@ def test_jacobian():
     assert j.shape[1] == 4
 
 
-@pytest.mark.parametrize("num_meshes", [2, 3])
+@pytest.mark.parametrize("num_meshes", [1, 2, 3])
 def test_jacobian_finite_difference(num_meshes):
     """Validate analytic jacobian against central-difference numerical jacobian.
 
@@ -218,11 +218,14 @@ def test_jacobian_finite_difference(num_meshes):
     mesh_names = ['bnd%d' % i for i in range(num_meshes)]
     geom = OrderedDict([(s, b) for s, b in zip(mesh_names, bnds)])
     cond = OrderedDict([(s, 1 + np.random.rand()) for s in mesh_names])
-    # Use full face-center grid on outermost shell so EIT_protocol returns
-    # a non-empty measurement set (head_from_bnds's [::800] slice gives
-    # only 1 electrode for basic icosahedrons -> 0 measurements).
+    # Use a denser slice of face centers so EIT_protocol returns a non-empty
+    # measurement set (head_from_bnds's [::800] gives only 1 elec for basic
+    # icosahedrons -> 0 measurements).
     elecs = find_center_of_triangle(bnds[-1][0], bnds[-1][1])[::4, :]
     head = OpenMEEGHead(cond, geom, elecs)
+    # 1-mesh A has a constant-potential null space; force pinv path so V works.
+    if num_meshes == 1:
+        _ = head.Ainv
 
     n_elec = head.n_electrodes
     ND2V = EIT_protocol(num_elec=n_elec, n_freq=1, protocol='all_realistic')
@@ -243,6 +246,9 @@ def test_jacobian_finite_difference(num_meshes):
                                  for t in cond)
         head_plus = OpenMEEGHead(cond_plus, geom, elecs)
         head_minus = OpenMEEGHead(cond_minus, geom, elecs)
+        if num_meshes == 1:
+            _ = head_plus.Ainv
+            _ = head_minus.Ainv
         V_plus = head_plus.V.flatten()[ND2V]
         V_minus = head_minus.V.flatten()[ND2V]
         J_fd[:, i] = (V_plus - V_minus) / (2 * eps)
@@ -253,8 +259,51 @@ def test_jacobian_finite_difference(num_meshes):
 def test_hessian():
     bnds = simple_test_shapes(num_nested_meshes=4)
     head = head_from_bnds(bnds)
-    cond_list = [head.cond[shell] for shell in head.mesh_names] 
+    cond_list = [head.cond[shell] for shell in head.mesh_names]
     h = hessian(cond_list, head)
     assert len(h.shape) == 3
     assert h.shape[0] == h.shape[1] == 4
+
+
+@pytest.mark.parametrize("num_meshes", [2, 3])
+def test_hessian_finite_difference(num_meshes):
+    """Validate analytic Hessian against central-difference of the Jacobian.
+
+    H[i, j, m] should equal (J(sigma + eps*e_j)[m, i] - J(sigma - eps*e_j)[m, i]) / (2*eps).
+    Catches sign flips, index drift, and wrong-branch selection in
+    `material_derivative.hessian` (which only had a shape test before).
+    """
+    bnds = simple_test_shapes(num_nested_meshes=num_meshes)
+    mesh_names = ['bnd%d' % i for i in range(num_meshes)]
+    geom = OrderedDict([(s, b) for s, b in zip(mesh_names, bnds)])
+    cond = OrderedDict([(s, 1 + np.random.rand()) for s in mesh_names])
+    elecs = find_center_of_triangle(bnds[-1][0], bnds[-1][1])[::4, :]
+    head = OpenMEEGHead(cond, geom, elecs)
+    n_elec = head.n_electrodes
+    ND2V = EIT_protocol(num_elec=n_elec, n_freq=1, protocol='all_realistic')
+
+    # Analytic Hessian: shape (P, P, M)
+    H_analytic = hessian(cond, head, ND2V=ND2V)
+
+    # Numerical Hessian via central-difference of the analytic Jacobian.
+    # Fresh OpenMEEGHead per perturbation (no set_cond cache reliance).
+    eps = 1e-4
+    H_fd = np.zeros_like(H_analytic)
+    tissues_inside_out = list(reversed(head.mesh_names))
+    for j, tissue_j in enumerate(tissues_inside_out):
+        cond_plus = OrderedDict((t, cond[t] + (eps if t == tissue_j else 0.0))
+                                for t in cond)
+        cond_minus = OrderedDict((t, cond[t] - (eps if t == tissue_j else 0.0))
+                                 for t in cond)
+        head_plus = OpenMEEGHead(cond_plus, geom, elecs)
+        head_minus = OpenMEEGHead(cond_minus, geom, elecs)
+        J_plus = jacobian(head_plus.cond, head_plus, ND2V=ND2V)   # (M, P)
+        J_minus = jacobian(head_minus.cond, head_minus, ND2V=ND2V)
+        # H[:, j, :] = d(J[:, :].T) / d(sigma_j)  -> shape (P, M)
+        H_fd[:, j, :] = (J_plus.T - J_minus.T) / (2 * eps)
+
+    # Looser atol than the Jacobian FD test: H_fd is a finite difference of
+    # an already-computed analytic J, so it inherits one more layer of
+    # numerical noise than the V-based FD used for the Jacobian.
+    np.testing.assert_allclose(H_analytic, H_fd, rtol=1e-4, atol=1e-5)
 

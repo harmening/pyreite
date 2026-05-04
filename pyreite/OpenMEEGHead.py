@@ -134,11 +134,13 @@ class OpenMEEGHead(object):
         return self._V
     def Vsetter(self, freqs=[10**7], Iamp=[133.0e-3], ref='no_ref', \
           excluded_chan=[], nonans=True):
-        if not isinstance(self._V, np.ndarray):
-            self._V, _ = self._EIT_data(self.gain, self.sens, freqs=freqs, \
-                                        Iamp=Iamp, ref=ref, \
-                                        excluded_chan=excluded_chan, \
-                                        nonans=nonans)
+        # Always recompute: the cache key (V property) ignores these arguments,
+        # so honoring a stale cache here would silently drop the caller's
+        # freqs / Iamp / ref / excluded_chan / nonans choices.
+        self._V, _ = self._EIT_data(self.gain, self.sens, freqs=freqs, \
+                                    Iamp=Iamp, ref=ref, \
+                                    excluded_chan=excluded_chan, \
+                                    nonans=nonans)
         return self._V
 
     def _EIT_data(self, G_eit, sens, freqs=[10**7], Iamp=[133.0e-3], \
@@ -206,6 +208,7 @@ class OpenMEEGHead(object):
             self.geom, self.sens = create_geometry(fn_geom, fn_cond, fn_elec)
         self._A = None
         self._Ainv = None
+        self._h2em = None
         self._eitsm = None
         self._gain = None
         self._C = None

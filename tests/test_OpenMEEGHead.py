@@ -48,6 +48,7 @@ def test_OpenMEEGHead():
     head.set_cond(cond)
     assert head._A == None
     assert head._Ainv == None
+    assert head._h2em == None
     assert head._eitsm == None
     assert head._gain == None
     assert head._C == None
